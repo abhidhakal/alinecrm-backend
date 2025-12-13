@@ -26,7 +26,7 @@ export class AuthService {
       name: dto.name,
       email: dto.email,
       passwordHash: hashedPassword,
-      roleId: 1, // default role
+      roleId: 1, // default role, user
     });
 
     await this.userRepository.save(user);

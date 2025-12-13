@@ -6,6 +6,12 @@ import { AppService } from './app.service';
 import { AuthModule } from './auth/auth.module';
 import { Role } from './entities/role.entity';
 import { User } from './entities/user.entity';
+import { Contact } from './entities/contact.entity';
+import { Lead } from './entities/lead.entity';
+import { Task } from './entities/task.entity';
+import { Campaign } from './entities/campaign.entity';
+import { CampaignRecipient } from './entities/campaign_recipient.entity';
+import { Mindfulness } from './entities/mindfulness.entity';
 
 @Module({
   imports: [
@@ -15,7 +21,10 @@ import { User } from './entities/user.entity';
     TypeOrmModule.forRoot({
       type: 'postgres',
       url: process.env.DATABASE_URL,
-      entities: [Role, User],
+      entities: [
+        Role, User,
+        Contact, Lead, Task, Campaign, CampaignRecipient, Mindfulness
+      ],
       synchronize: true, // Auto-create tables (disable in production)
       logging: false,
     }),

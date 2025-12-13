@@ -3,11 +3,16 @@ import {
   PrimaryGeneratedColumn,
   Column,
   ManyToOne,
+  OneToMany, // Added OneToMany
   JoinColumn,
   CreateDateColumn,
   UpdateDateColumn,
 } from 'typeorm';
 import { Role } from './role.entity';
+import { Lead } from './lead.entity';
+import { Task } from './task.entity';
+import { Campaign } from './campaign.entity';
+import { Mindfulness } from './mindfulness.entity';
 
 @Entity('users')
 export class User {
@@ -29,6 +34,18 @@ export class User {
   @ManyToOne(() => Role, (role) => role.users)
   @JoinColumn({ name: 'role_id' })
   role: Role;
+
+  @OneToMany(() => Lead, (lead) => lead.assignedTo)
+  leads: Lead[];
+
+  @OneToMany(() => Task, (task) => task.assignedTo)
+  tasks: Task[];
+
+  @OneToMany(() => Campaign, (campaign) => campaign.createdBy)
+  campaigns: Campaign[];
+
+  @OneToMany(() => Mindfulness, (mindfulness) => mindfulness.user)
+  mindfulnessSessions: Mindfulness[];
 
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;
