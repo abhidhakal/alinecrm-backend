@@ -1,11 +1,11 @@
 import { Module } from '@nestjs/common';
-import { PassportModule } from '@nestjs/passport'; // Added import
+import { PassportModule } from '@nestjs/passport';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { JwtModule } from '@nestjs/jwt';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
-import { JwtStrategy } from './jwt.strategy'; // Added import
-import { JwtAuthGuard } from './jwt-auth.guard'; // Added import for export consistency
+import { JwtStrategy } from './jwt.strategy';
+import { JwtAuthGuard } from './jwt-auth.guard';
 import { User } from '../entities/user.entity';
 import { Role } from '../entities/role.entity';
 
@@ -15,12 +15,12 @@ import { Role } from '../entities/role.entity';
     PassportModule, // Import PassportModule
     JwtModule.register({
       secret: process.env.JWT_SECRET || 'your-secret-key',
-      signOptions: { expiresIn: '1h' },
+      signOptions: { expiresIn: '7d' },
     }),
   ],
   controllers: [AuthController],
-  providers: [AuthService, JwtStrategy], // Provide JwtStrategy
-  exports: [JwtAuthGuard, PassportModule] // Export if needed elsewhere
+  providers: [AuthService, JwtStrategy, JwtAuthGuard ], // Provide JwtStrategy
+  exports: [PassportModule] // Export if needed elsewhere
 })
 export class AuthModule { }
 

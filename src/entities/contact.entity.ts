@@ -1,5 +1,6 @@
-import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, OneToMany } from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, OneToMany, ManyToOne, JoinColumn } from 'typeorm';
 import { Task } from './task.entity';
+import { User } from './user.entity';
 
 @Entity('contacts')
 export class Contact {
@@ -23,6 +24,20 @@ export class Contact {
 
   @Column({ nullable: true })
   industry: string;
+
+  @Column({
+    type: 'enum',
+    enum: ['High', 'Medium', 'Low'],
+    default: 'Medium'
+  })
+  priority: string;
+
+  @Column({ name: 'user_id' })
+  userId: number;
+
+  @ManyToOne(() => User, (user) => user.contacts)
+  @JoinColumn({ name: 'user_id' })
+  user: User;
 
   @OneToMany(() => Task, (task) => task.relatedContact)
   tasks: Task[];
