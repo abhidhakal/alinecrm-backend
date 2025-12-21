@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, In } from 'typeorm';
 import { Task } from '../entities/task.entity';
@@ -15,20 +15,19 @@ export class TasksService {
     private readonly userRepository: Repository<User>,
   ) { }
 
-  async create(createTaskDto: CreateTaskDto): Promise<Task> {
+  async create(createTaskDto: CreateTaskDto, user: User): Promise<Task> {
     const { assignedToIds, assignedById, relatedLeadId, relatedContactId, ...taskData } = createTaskDto;
 
     const task = this.taskRepository.create(taskData);
+    
+    // Set the creator
+    task.assignedBy = user;
 
     if (assignedToIds && assignedToIds.length > 0) {
       task.assignedTo = await this.userRepository.findBy({ id: In(assignedToIds) });
     }
 
-    if (assignedById) {
-      task.assignedBy = await this.userRepository.findOneBy({ id: assignedById });
-    }
-
-    // Set related entities if needed (assuming simplified for now)
+    // Set related entities if needed
     if (relatedLeadId) {
       task.relatedLead = { id: relatedLeadId } as any;
     }
@@ -39,14 +38,18 @@ export class TasksService {
     return this.taskRepository.save(task);
   }
 
-  async findAll(): Promise<Task[]> {
+  async findAll(user: User): Promise<Task[]> {
     return this.taskRepository.find({
+      where: [
+        { assignedBy: { id: user.id } },
+        { assignedTo: { id: user.id } }
+      ],
       relations: ['assignedTo', 'assignedBy', 'relatedLead', 'relatedContact'],
       order: { createdAt: 'DESC' },
     });
   }
 
-  async findOne(id: number): Promise<Task> {
+  async findOne(id: number, user: User): Promise<Task> {
     const task = await this.taskRepository.findOne({
       where: { id },
       relations: ['assignedTo', 'assignedBy', 'relatedLead', 'relatedContact'],
@@ -56,13 +59,21 @@ export class TasksService {
       throw new NotFoundException(`Task with ID ${id} not found`);
     }
 
+    // Check if user has access (creator or assignee)
+    const isCreator = task.assignedBy?.id === user.id;
+    const isAssignee = task.assignedTo?.some(assignee => assignee.id === user.id);
+
+    if (!isCreator && !isAssignee) {
+      throw new ForbiddenException('You do not have access to this task');
+    }
+
     return task;
   }
 
-  async update(id: number, updateTaskDto: UpdateTaskDto): Promise<Task> {
+  async update(id: number, updateTaskDto: UpdateTaskDto, user: User): Promise<Task> {
     const { assignedToIds, assignedById, relatedLeadId, relatedContactId, ...taskData } = updateTaskDto;
 
-    const task = await this.findOne(id);
+    const task = await this.findOne(id, user);
 
     // Merge basic fields
     Object.assign(task, taskData);
@@ -73,10 +84,6 @@ export class TasksService {
       } else {
         task.assignedTo = [];
       }
-    }
-
-    if (assignedById !== undefined) {
-      task.assignedBy = assignedById ? await this.userRepository.findOneBy({ id: assignedById }) : null;
     }
 
     // Update relations if provided
@@ -90,10 +97,16 @@ export class TasksService {
     return this.taskRepository.save(task);
   }
 
-  async remove(id: number): Promise<void> {
-    const result = await this.taskRepository.delete(id);
-    if (result.affected === 0) {
-      throw new NotFoundException(`Task with ID ${id} not found`);
+  async remove(id: number, user: User): Promise<void> {
+    const task = await this.findOne(id, user);
+    
+    // Only allow creator to delete? Or assignees too? 
+    // For now, let's allow both if they have access, or maybe restrict to creator.
+    // Let's restrict delete to creator for better security.
+    if (task.assignedBy?.id !== user.id) {
+      throw new ForbiddenException('Only the creator can delete this task');
     }
+
+    await this.taskRepository.remove(task);
   }
 }
