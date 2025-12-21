@@ -5,6 +5,7 @@ import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { AuthModule } from './auth/auth.module';
 import { ContactsModule } from './contacts/contacts.module';
+import { TasksModule } from './tasks/tasks.module';
 import { Role } from './entities/role.entity';
 import { User } from './entities/user.entity';
 import { Contact } from './entities/contact.entity';
@@ -31,6 +32,7 @@ import { Mindfulness } from './entities/mindfulness.entity';
     }),
     AuthModule,
     ContactsModule,
+    TasksModule,
     // other modules like AuthModule can be added here later
   ],
   controllers: [AppController],

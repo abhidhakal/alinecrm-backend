@@ -5,6 +5,7 @@ import {
   ManyToOne,
   OneToMany, // Added OneToMany
   JoinColumn,
+  ManyToMany,
   CreateDateColumn,
   UpdateDateColumn,
 } from 'typeorm';
@@ -39,8 +40,11 @@ export class User {
   @OneToMany(() => Lead, (lead) => lead.assignedTo)
   leads: Lead[];
 
-  @OneToMany(() => Task, (task) => task.assignedTo)
-  tasks: Task[];
+  @ManyToMany(() => Task, (task) => task.assignedTo)
+  assignedTasks: Task[];
+
+  @OneToMany(() => Task, (task) => task.assignedBy)
+  createdTasks: Task[];
 
   @OneToMany(() => Campaign, (campaign) => campaign.createdBy)
   campaigns: Campaign[];

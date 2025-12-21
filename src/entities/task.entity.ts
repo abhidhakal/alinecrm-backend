@@ -1,7 +1,13 @@
-import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, ManyToOne, JoinColumn } from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, ManyToOne, JoinColumn, ManyToMany, JoinTable } from 'typeorm';
 import { User } from './user.entity';
 import { Lead } from './lead.entity';
 import { Contact } from './contact.entity';
+
+export enum TaskStatus {
+  TODO = 'To-Do',
+  IN_PROGRESS = 'In Progress',
+  COMPLETE = 'Complete',
+}
 
 @Entity('tasks')
 export class Task {
@@ -14,21 +20,42 @@ export class Task {
   @Column('text')
   description: string;
 
+  @Column({ nullable: true })
+  category: string;
+
+  @Column({ type: 'int', default: 0 })
+  progress: number;
+
+  @Column({ type: 'date', name: 'assigned_date', nullable: true })
+  assignedDate: Date;
+
   @Column({ type: 'date', name: 'due_date' })
   dueDate: Date;
 
-  @Column()
-  status: string;
+  @Column({
+    type: 'enum',
+    enum: TaskStatus,
+    default: TaskStatus.TODO,
+  })
+  status: TaskStatus;
 
-  @ManyToOne(() => User, (user) => user.tasks)
-  @JoinColumn({ name: 'assigned_to' })
-  assignedTo: User;
+  @ManyToMany(() => User, (user) => user.assignedTasks)
+  @JoinTable({
+    name: 'task_assignees',
+    joinColumn: { name: 'task_id', referencedColumnName: 'id' },
+    inverseJoinColumn: { name: 'user_id', referencedColumnName: 'id' },
+  })
+  assignedTo: User[];
 
-  @ManyToOne(() => Lead, (lead) => lead.tasks)
+  @ManyToOne(() => User, (user) => user.createdTasks, { nullable: true })
+  @JoinColumn({ name: 'assigned_by' })
+  assignedBy: User | null;
+
+  @ManyToOne(() => Lead, (lead) => lead.tasks, { nullable: true })
   @JoinColumn({ name: 'related_lead_id' })
   relatedLead: Lead;
 
-  @ManyToOne(() => Contact, (contact) => contact.tasks)
+  @ManyToOne(() => Contact, (contact) => contact.tasks, { nullable: true })
   @JoinColumn({ name: 'related_contact_id' })
   relatedContact: Contact;
 
@@ -38,3 +65,4 @@ export class Task {
   @UpdateDateColumn({ name: 'updated_at' })
   updatedAt: Date;
 }
+
