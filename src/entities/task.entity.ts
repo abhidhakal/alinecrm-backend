@@ -2,6 +2,9 @@ import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateCol
 import { User } from './user.entity';
 import { Lead } from './lead.entity';
 import { Contact } from './contact.entity';
+import { Campaign } from './campaign.entity';
+import { Mindfulness } from './mindfulness.entity';
+import { Revenue } from './revenue.entity';
 
 export enum TaskStatus {
   TODO = 'To-Do',
@@ -58,6 +61,18 @@ export class Task {
   @ManyToOne(() => Contact, (contact) => contact.tasks, { nullable: true })
   @JoinColumn({ name: 'related_contact_id' })
   relatedContact: Contact;
+
+  @ManyToOne(() => Campaign, (campaign) => campaign.tasks, { nullable: true })
+  @JoinColumn({ name: 'related_campaign_id' })
+  relatedCampaign: Campaign;
+
+  @ManyToOne(() => Mindfulness, (mindfulness) => mindfulness.tasks, { nullable: true })
+  @JoinColumn({ name: 'related_mindfulness_id' })
+  relatedMindfulness: Mindfulness;
+
+  @ManyToOne(() => Revenue, (revenue) => revenue.tasks, { nullable: true })
+  @JoinColumn({ name: 'related_revenue_id' })
+  relatedRevenue: Revenue;
 
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;

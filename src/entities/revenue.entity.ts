@@ -1,6 +1,7 @@
-import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, ManyToOne, JoinColumn } from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, ManyToOne, JoinColumn, OneToMany } from 'typeorm';
 import { User } from './user.entity';
 import { Lead } from './lead.entity';
+import { Task } from './task.entity';
 
 @Entity('revenues')
 export class Revenue {
@@ -26,6 +27,9 @@ export class Revenue {
   @ManyToOne(() => User, (user) => user.revenues)
   @JoinColumn({ name: 'user_id' })
   user: User;
+
+  @OneToMany(() => Task, (task) => task.relatedRevenue)
+  tasks: Task[];
 
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;

@@ -46,4 +46,16 @@ export class CreateTaskDto {
   @IsNumber()
   @IsOptional()
   relatedContactId?: number;
+
+  @IsNumber()
+  @IsOptional()
+  relatedCampaignId?: number;
+
+  @IsNumber()
+  @IsOptional()
+  relatedMindfulnessId?: number;
+
+  @IsNumber()
+  @IsOptional()
+  relatedRevenueId?: number;
 }

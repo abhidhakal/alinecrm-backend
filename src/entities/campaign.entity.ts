@@ -1,6 +1,7 @@
 import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, ManyToOne, OneToMany, JoinColumn } from 'typeorm';
 import { User } from './user.entity';
 import { CampaignRecipient } from './campaign_recipient.entity';
+import { Task } from './task.entity';
 
 @Entity('campaigns')
 export class Campaign {
@@ -19,6 +20,9 @@ export class Campaign {
 
   @OneToMany(() => CampaignRecipient, (recipient) => recipient.campaign)
   recipients: CampaignRecipient[];
+
+  @OneToMany(() => Task, (task) => task.relatedCampaign)
+  tasks: Task[];
 
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;

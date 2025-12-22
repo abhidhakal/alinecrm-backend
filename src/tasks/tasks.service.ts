@@ -16,7 +16,7 @@ export class TasksService {
   ) { }
 
   async create(createTaskDto: CreateTaskDto, user: User): Promise<Task> {
-    const { assignedToIds, assignedById, relatedLeadId, relatedContactId, ...taskData } = createTaskDto;
+    const { assignedToIds, assignedById, relatedLeadId, relatedContactId, relatedCampaignId, relatedMindfulnessId, relatedRevenueId, ...taskData } = createTaskDto;
 
     const task = this.taskRepository.create(taskData);
     
@@ -34,6 +34,15 @@ export class TasksService {
     if (relatedContactId) {
       task.relatedContact = { id: relatedContactId } as any;
     }
+    if (relatedCampaignId) {
+      task.relatedCampaign = { id: relatedCampaignId } as any;
+    }
+    if (relatedMindfulnessId) {
+      task.relatedMindfulness = { id: relatedMindfulnessId } as any;
+    }
+    if (relatedRevenueId) {
+      task.relatedRevenue = { id: relatedRevenueId } as any;
+    }
 
     return this.taskRepository.save(task);
   }
@@ -44,7 +53,7 @@ export class TasksService {
         { assignedBy: { id: user.id } },
         { assignedTo: { id: user.id } }
       ],
-      relations: ['assignedTo', 'assignedBy', 'relatedLead', 'relatedContact'],
+      relations: ['assignedTo', 'assignedBy', 'relatedLead', 'relatedContact', 'relatedCampaign', 'relatedMindfulness', 'relatedRevenue'],
       order: { createdAt: 'DESC' },
     });
   }
@@ -52,7 +61,7 @@ export class TasksService {
   async findOne(id: number, user: User): Promise<Task> {
     const task = await this.taskRepository.findOne({
       where: { id },
-      relations: ['assignedTo', 'assignedBy', 'relatedLead', 'relatedContact'],
+      relations: ['assignedTo', 'assignedBy', 'relatedLead', 'relatedContact', 'relatedCampaign', 'relatedMindfulness', 'relatedRevenue'],
     });
 
     if (!task) {
@@ -71,7 +80,7 @@ export class TasksService {
   }
 
   async update(id: number, updateTaskDto: UpdateTaskDto, user: User): Promise<Task> {
-    const { assignedToIds, assignedById, relatedLeadId, relatedContactId, ...taskData } = updateTaskDto;
+    const { assignedToIds, assignedById, relatedLeadId, relatedContactId, relatedCampaignId, relatedMindfulnessId, relatedRevenueId, ...taskData } = updateTaskDto;
 
     const task = await this.findOne(id, user);
 
@@ -92,6 +101,15 @@ export class TasksService {
     }
     if (relatedContactId !== undefined) {
       task.relatedContact = relatedContactId ? { id: relatedContactId } as any : null;
+    }
+    if (relatedCampaignId !== undefined) {
+      task.relatedCampaign = relatedCampaignId ? { id: relatedCampaignId } as any : null;
+    }
+    if (relatedMindfulnessId !== undefined) {
+      task.relatedMindfulness = relatedMindfulnessId ? { id: relatedMindfulnessId } as any : null;
+    }
+    if (relatedRevenueId !== undefined) {
+      task.relatedRevenue = relatedRevenueId ? { id: relatedRevenueId } as any : null;
     }
 
     return this.taskRepository.save(task);
