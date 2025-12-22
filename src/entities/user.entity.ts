@@ -15,6 +15,7 @@ import { Task } from './task.entity';
 import { Campaign } from './campaign.entity';
 import { Mindfulness } from './mindfulness.entity';
 import { Contact } from './contact.entity';
+import { Revenue } from './revenue.entity';
 
 @Entity('users')
 export class User {
@@ -54,6 +55,9 @@ export class User {
 
   @OneToMany(() => Contact, (contact) => contact.user)
   contacts: Contact[];
+
+  @OneToMany(() => Revenue, (revenue) => revenue.user)
+  revenues: Revenue[];
 
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;
