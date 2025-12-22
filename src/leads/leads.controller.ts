@@ -4,6 +4,8 @@ import { CreateLeadDto } from './dto/create-lead.dto';
 import { UpdateLeadDto } from './dto/update-lead.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 
+import { User } from '../entities/user.entity';
+
 @Controller('leads')
 @UseGuards(JwtAuthGuard)
 export class LeadsController {
@@ -11,26 +13,31 @@ export class LeadsController {
 
   @Post()
   create(@Body() createLeadDto: CreateLeadDto, @Request() req) {
-    return this.leadsService.create(createLeadDto, req.user);
+    const user = { id: req.user.userId, role: req.user.role } as User;
+    return this.leadsService.create(createLeadDto, user);
   }
 
   @Get()
   findAll(@Request() req) {
-    return this.leadsService.findAll(req.user);
+    const user = { id: req.user.userId, role: req.user.role } as User;
+    return this.leadsService.findAll(user);
   }
 
   @Get(':id')
   findOne(@Param('id') id: string, @Request() req) {
-    return this.leadsService.findOne(+id, req.user);
+    const user = { id: req.user.userId, role: req.user.role } as User;
+    return this.leadsService.findOne(+id, user);
   }
 
   @Patch(':id')
   update(@Param('id') id: string, @Body() updateLeadDto: UpdateLeadDto, @Request() req) {
-    return this.leadsService.update(+id, updateLeadDto, req.user);
+    const user = { id: req.user.userId, role: req.user.role } as User;
+    return this.leadsService.update(+id, updateLeadDto, user);
   }
 
   @Delete(':id')
   remove(@Param('id') id: string, @Request() req) {
-    return this.leadsService.remove(+id, req.user);
+    const user = { id: req.user.userId, role: req.user.role } as User;
+    return this.leadsService.remove(+id, user);
   }
 }

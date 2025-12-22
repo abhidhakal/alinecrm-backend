@@ -7,6 +7,7 @@ import { Revenue } from '../entities/revenue.entity';
 import { CreateLeadDto } from './dto/create-lead.dto';
 import { UpdateLeadDto } from './dto/update-lead.dto';
 import { User } from '../entities/user.entity';
+import { Role } from '../auth/role.enum';
 
 @Injectable()
 export class LeadsService {
@@ -29,8 +30,12 @@ export class LeadsService {
     });
 
     if (contactId) {
+      const whereClause: any = { id: contactId };
+      if (user.role !== Role.Admin && user.role !== Role.SuperAdmin) {
+        whereClause.user = { id: user.id };
+      }
       const contact = await this.contactsRepository.findOne({
-        where: { id: contactId, user: { id: user.id } },
+        where: whereClause,
       });
       if (!contact) {
         throw new NotFoundException(`Contact with ID ${contactId} not found`);
@@ -48,6 +53,12 @@ export class LeadsService {
   }
 
   async findAll(user: User): Promise<Lead[]> {
+    if (user.role === Role.Admin || user.role === Role.SuperAdmin) {
+      return this.leadsRepository.find({
+        relations: ['contact'],
+        order: { createdAt: 'DESC' },
+      });
+    }
     return this.leadsRepository.find({
       where: { assignedTo: { id: user.id } },
       relations: ['contact'],
@@ -56,8 +67,12 @@ export class LeadsService {
   }
 
   async findOne(id: number, user: User): Promise<Lead> {
+    const whereClause: any = { id };
+    if (user.role !== Role.Admin && user.role !== Role.SuperAdmin) {
+      whereClause.assignedTo = { id: user.id };
+    }
     const lead = await this.leadsRepository.findOne({
-      where: { id, assignedTo: { id: user.id } },
+      where: whereClause,
       relations: ['contact'],
     });
 

@@ -31,12 +31,8 @@ export class User {
   @Column({ name: 'password_hash' })
   passwordHash: string;
 
-  @Column({ name: 'role_id' })
-  roleId: number;
-
-  @ManyToOne(() => Role, (role) => role.users)
-  @JoinColumn({ name: 'role_id' })
-  role: Role;
+  @Column({ default: 'user' })
+  role: string;
 
   @OneToMany(() => Lead, (lead) => lead.assignedTo)
   leads: Lead[];

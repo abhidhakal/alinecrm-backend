@@ -5,6 +5,7 @@ import { Task } from '../entities/task.entity';
 import { User } from '../entities/user.entity';
 import { CreateTaskDto } from './dto/create-task.dto';
 import { UpdateTaskDto } from './dto/update-task.dto';
+import { Role } from '../auth/role.enum';
 
 @Injectable()
 export class TasksService {
@@ -48,6 +49,12 @@ export class TasksService {
   }
 
   async findAll(user: User): Promise<Task[]> {
+    if (user.role === Role.Admin || user.role === Role.SuperAdmin) {
+      return this.taskRepository.find({
+        relations: ['assignedTo', 'assignedBy', 'relatedLead', 'relatedContact', 'relatedCampaign', 'relatedMindfulness', 'relatedRevenue'],
+        order: { createdAt: 'DESC' },
+      });
+    }
     return this.taskRepository.find({
       where: [
         { assignedBy: { id: user.id } },
@@ -66,6 +73,10 @@ export class TasksService {
 
     if (!task) {
       throw new NotFoundException(`Task with ID ${id} not found`);
+    }
+
+    if (user.role === Role.Admin || user.role === Role.SuperAdmin) {
+      return task;
     }
 
     // Check if user has access (creator or assignee)
@@ -118,6 +129,11 @@ export class TasksService {
   async remove(id: number, user: User): Promise<void> {
     const task = await this.findOne(id, user);
     
+    if (user.role === Role.Admin || user.role === Role.SuperAdmin) {
+      await this.taskRepository.remove(task);
+      return;
+    }
+
     // Only allow creator to delete? Or assignees too? 
     // For now, let's allow both if they have access, or maybe restrict to creator.
     // Let's restrict delete to creator for better security.

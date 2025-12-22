@@ -26,11 +26,11 @@ export class AuthService {
       name: dto.name,
       email: dto.email,
       passwordHash: hashedPassword,
-      roleId: 1, // default role, user
+      role: dto.role || 'user', // Default to 'user', but allow 'admin' or 'superadmin' if specified
     });
 
     await this.userRepository.save(user);
-    return { id: user.id, email: user.email, name: user.name };
+    return { id: user.id, email: user.email, name: user.name, role: user.role };
   }
 
   async login(dto: LoginDto) {
@@ -42,14 +42,15 @@ export class AuthService {
     const isPasswordValid = await bcrypt.compare(dto.password, user.passwordHash);
     if (!isPasswordValid) throw new UnauthorizedException('Invalid credentials');
 
-    const payload = { sub: user.id, email: user.email, roleId: user.roleId };
+    const payload = { sub: user.id, email: user.email, role: user.role };
     const token = this.jwtService.sign(payload, { secret: process.env.JWT_SECRET, expiresIn: '1h' });
     return {
       access_token: token,
       user: {
+        id: user.id,
         name: user.name,
         email: user.email,
-        id: user.id
+        role: user.role
       }
     };
   }
