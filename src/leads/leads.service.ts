@@ -21,11 +21,11 @@ export class LeadsService {
   ) {}
 
   async create(createLeadDto: CreateLeadDto, user: User): Promise<Lead> {
-    const { contactId, ...leadData } = createLeadDto;
+    const { contactId, assignedToId, ...leadData } = createLeadDto;
 
     const lead = this.leadsRepository.create({
       ...leadData,
-      assignedTo: user,
+      assignedTo: assignedToId ? { id: assignedToId } as User : user,
       status: leadData.status || LeadStatus.NEW,
     });
 
@@ -55,13 +55,13 @@ export class LeadsService {
   async findAll(user: User): Promise<Lead[]> {
     if (user.role === Role.Admin || user.role === Role.SuperAdmin) {
       return this.leadsRepository.find({
-        relations: ['contact'],
+        relations: ['contact', 'assignedTo'],
         order: { createdAt: 'DESC' },
       });
     }
     return this.leadsRepository.find({
       where: { assignedTo: { id: user.id } },
-      relations: ['contact'],
+      relations: ['contact', 'assignedTo'],
       order: { createdAt: 'DESC' },
     });
   }
@@ -73,7 +73,7 @@ export class LeadsService {
     }
     const lead = await this.leadsRepository.findOne({
       where: whereClause,
-      relations: ['contact'],
+      relations: ['contact', 'assignedTo'],
     });
 
     if (!lead) {
@@ -84,11 +84,16 @@ export class LeadsService {
   }
 
   async update(id: number, updateLeadDto: UpdateLeadDto, user: User): Promise<Lead> {
+    const { assignedToId, ...updateData } = updateLeadDto;
     const lead = await this.findOne(id, user);
     const previousStatus = lead.status;
 
     // Update fields
-    Object.assign(lead, updateLeadDto);
+    Object.assign(lead, updateData);
+
+    if (assignedToId) {
+      lead.assignedTo = { id: assignedToId } as User;
+    }
 
     // Check for status change to CLOSED_WON
     if (

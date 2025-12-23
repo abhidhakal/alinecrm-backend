@@ -26,6 +26,8 @@ export class TasksService {
 
     if (assignedToIds && assignedToIds.length > 0) {
       task.assignedTo = await this.userRepository.findBy({ id: In(assignedToIds) });
+    } else {
+      task.assignedTo = [user];
     }
 
     // Set related entities if needed

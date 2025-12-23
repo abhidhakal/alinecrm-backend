@@ -46,4 +46,8 @@ export class CreateLeadDto {
   @IsNumber()
   @IsOptional()
   contactId?: number;
+
+  @IsNumber()
+  @IsOptional()
+  assignedToId?: number;
 }
