@@ -19,7 +19,7 @@ import { Role } from '../entities/role.entity';
     }),
   ],
   controllers: [AuthController],
-  providers: [AuthService, JwtStrategy, JwtAuthGuard ], // Provide JwtStrategy
+  providers: [AuthService, JwtStrategy, JwtAuthGuard], // Provide JwtStrategy
   exports: [PassportModule] // Export if needed elsewhere
 })
 export class AuthModule { }

@@ -1,4 +1,3 @@
-
 import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards, Request } from '@nestjs/common';
 import { ContactsService } from './contacts.service';
 import { CreateContactDto } from './dto/create-contact.dto';
@@ -18,6 +17,12 @@ export class ContactsController {
     return this.contactsService.create(createContactDto, user);
   }
 
+  @Post('bulk')
+  bulkCreate(@Body() createContactDtos: CreateContactDto[], @Request() req) {
+    const user = { id: req.user.userId, role: req.user.role } as User;
+    return this.contactsService.bulkCreate(createContactDtos, user);
+  }
+
   @Get()
   findAll(@Request() req) {
     const user = { id: req.user.userId, role: req.user.role } as User;
@@ -34,6 +39,12 @@ export class ContactsController {
   update(@Param('id') id: string, @Body() updateContactDto: UpdateContactDto, @Request() req) {
     const user = { id: req.user.userId, role: req.user.role } as User;
     return this.contactsService.update(+id, updateContactDto, user);
+  }
+
+  @Post('delete-bulk')
+  bulkRemove(@Body('ids') ids: number[], @Request() req) {
+    const user = { id: req.user.userId, role: req.user.role } as User;
+    return this.contactsService.bulkRemove(ids, user);
   }
 
   @Delete(':id')

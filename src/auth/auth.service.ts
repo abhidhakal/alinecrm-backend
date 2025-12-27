@@ -26,7 +26,7 @@ export class AuthService {
       name: dto.name,
       email: dto.email,
       passwordHash: hashedPassword,
-      role: dto.role || 'user', // Default to 'user', but allow 'admin' or 'superadmin' if specified
+      role: dto.role || 'user',
     });
 
     await this.userRepository.save(user);
@@ -43,7 +43,7 @@ export class AuthService {
     if (!isPasswordValid) throw new UnauthorizedException('Invalid credentials');
 
     const payload = { sub: user.id, email: user.email, role: user.role };
-    const token = this.jwtService.sign(payload, { secret: process.env.JWT_SECRET, expiresIn: '1h' });
+    const token = this.jwtService.sign(payload, { secret: process.env.JWT_SECRET || 'your-secret-key', expiresIn: '7d' });
     return {
       access_token: token,
       user: {

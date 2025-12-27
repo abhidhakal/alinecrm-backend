@@ -16,7 +16,7 @@ export class UnsubscribedEmail {
   email: string;
 
   // Source campaign that triggered unsubscribe (if known)
-  @Column({ name: 'source_campaign_id', nullable: true })
+  @Column({ type: 'int', name: 'source_campaign_id', nullable: true })
   sourceCampaignId: number | null;
 
   @Column({ nullable: true })

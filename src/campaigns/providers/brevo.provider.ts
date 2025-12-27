@@ -103,6 +103,7 @@ export class BrevoProvider implements IEmailProvider {
 
       if (!response.ok) {
         const errorData = await response.json();
+        this.logger.error(`Brevo API Error: ${JSON.stringify(errorData)}`);
         throw new Error(errorData.message || `HTTP ${response.status}`);
       }
 

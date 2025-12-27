@@ -9,7 +9,7 @@ import { User } from '../entities/user.entity';
 @Controller('leads')
 @UseGuards(JwtAuthGuard)
 export class LeadsController {
-  constructor(private readonly leadsService: LeadsService) {}
+  constructor(private readonly leadsService: LeadsService) { }
 
   @Post()
   create(@Body() createLeadDto: CreateLeadDto, @Request() req) {

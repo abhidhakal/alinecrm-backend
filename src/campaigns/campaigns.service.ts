@@ -308,26 +308,34 @@ export class CampaignsService {
     sendDto: SendCampaignDto,
     user: User,
   ): Promise<{ success: boolean; message: string; recipientCount: number }> {
+    this.logger.log(`[DEBUG] sendCampaign initiated for Campaign ID: ${id}`);
+
     const campaign = await this.findOne(id);
 
     // Validate campaign can be sent
     if (campaign.status === CampaignStatus.SENDING) {
+      this.logger.warn(`Campaign ${id} is already in SENDING status`);
       throw new BadRequestException('Campaign is already sending');
     }
 
     if (campaign.status === CampaignStatus.SENT) {
+      this.logger.warn(`Campaign ${id} is already SENT`);
       throw new BadRequestException('Campaign has already been sent');
     }
 
     // Check for required fields
     if (!campaign.htmlContent || !campaign.subject) {
+      this.logger.error(`Campaign ${id} missing content/subject`);
       throw new BadRequestException('Campaign must have subject and HTML content');
     }
 
     // Resolve audience dynamically
+    this.logger.log(`[DEBUG] Resolving audience...`);
     const recipients = await this.resolveAudience(campaign.audienceFilters);
+    this.logger.log(`[DEBUG] Resolved ${recipients.length} recipients`);
 
     if (recipients.length === 0) {
+      this.logger.warn(`[DEBUG] No recipients found. Aborting send.`);
       throw new BadRequestException('No recipients match the audience filters');
     }
 
@@ -335,9 +343,11 @@ export class CampaignsService {
     campaign.status = CampaignStatus.SENDING;
     campaign.totalRecipients = recipients.length;
     await this.campaignRepository.save(campaign);
+    this.logger.log(`[DEBUG] Campaign status updated to SENDING`);
 
     // Create recipient records
     await this.createRecipientRecords(campaign.id, recipients);
+    this.logger.log(`[DEBUG] Recipient records created`);
 
     // Start sending in background (don't await)
     this.processCampaignSending(campaign).catch((error) => {
@@ -377,6 +387,7 @@ export class CampaignsService {
   }
 
   private async processCampaignSending(campaign: EmailCampaign): Promise<void> {
+    this.logger.log(`[DEBUG] processCampaignSending started for ${campaign.id}`);
     const batchSize = this.brevoProvider.getBatchSize();
     const dailyLimit = this.brevoProvider.getDailyLimit();
 
@@ -401,8 +412,11 @@ export class CampaignsService {
         });
 
         if (queuedRecipients.length === 0) {
+          this.logger.log(`[DEBUG] No more queued recipients. Finishing.`);
           break; // All done
         }
+
+        this.logger.log(`[DEBUG] Processing batch of ${queuedRecipients.length} recipients`);
 
         // Prepare email batch
         const emailOptions: SendEmailOptions[] = queuedRecipients.map((r) => ({
@@ -424,7 +438,9 @@ export class CampaignsService {
         }));
 
         // Send batch
+        this.logger.log(`[DEBUG] Sending batch to BrevoProvider...`);
         const results = await this.brevoProvider.sendBatch(emailOptions);
+        this.logger.log(`[DEBUG] BrevoProvider returned ${results.length} results`);
 
         // Process results
         for (let i = 0; i < results.length; i++) {
@@ -432,12 +448,14 @@ export class CampaignsService {
           const recipient = queuedRecipients[i];
 
           if (result.success) {
+            this.logger.log(`[DEBUG] Email sent to ${recipient.email}. MsgID: ${result.messageId}`);
             recipient.status = RecipientStatus.SENT;
             recipient.providerMessageId = result.messageId || '';
             recipient.sentAt = new Date();
             campaign.sentCount++;
             sentToday++;
           } else {
+            this.logger.error(`[DEBUG] Failed to send to ${recipient.email}: ${result.error}`);
             recipient.status = RecipientStatus.FAILED;
             recipient.errorMessage = result.error || 'Unknown error';
             campaign.failedCount++;

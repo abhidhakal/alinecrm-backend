@@ -19,7 +19,7 @@ export class ContactsService {
   async create(createContactDto: CreateContactDto, user: User): Promise<Contact> {
     const { assignedToIds, ...contactData } = createContactDto;
     const contact = this.contactsRepository.create(contactData);
-    
+
     if (assignedToIds && assignedToIds.length > 0) {
       contact.assignedTo = await this.usersRepository.findBy({ id: In(assignedToIds) });
     } else {
@@ -27,6 +27,24 @@ export class ContactsService {
     }
 
     return await this.contactsRepository.save(contact);
+  }
+
+  async bulkCreate(createContactDtos: CreateContactDto[], user: User): Promise<Contact[]> {
+    const contacts: Contact[] = [];
+
+    for (const dto of createContactDtos) {
+      const { assignedToIds, ...contactData } = dto;
+      const contact = this.contactsRepository.create(contactData);
+
+      if (assignedToIds && assignedToIds.length > 0) {
+        contact.assignedTo = await this.usersRepository.findBy({ id: In(assignedToIds) });
+      } else {
+        contact.assignedTo = [user];
+      }
+      contacts.push(contact);
+    }
+
+    return await this.contactsRepository.save(contacts);
   }
 
   async findAll(user: User): Promise<Contact[]> {
@@ -68,7 +86,7 @@ export class ContactsService {
     const { assignedToIds, ...contactData } = updateContactDto;
     const contact = await this.findOne(id, user);
     Object.assign(contact, contactData);
-    
+
     if (assignedToIds !== undefined) {
       if (assignedToIds.length > 0) {
         contact.assignedTo = await this.usersRepository.findBy({ id: In(assignedToIds) });
@@ -76,12 +94,25 @@ export class ContactsService {
         contact.assignedTo = [];
       }
     }
-    
+
     return await this.contactsRepository.save(contact);
   }
 
   async remove(id: number, user: User): Promise<void> {
     const contact = await this.findOne(id, user);
     await this.contactsRepository.remove(contact);
+  }
+
+  async bulkRemove(ids: number[], user: User): Promise<void> {
+    if (user.role === Role.Admin || user.role === Role.SuperAdmin) {
+      const contacts = await this.contactsRepository.findBy({ id: In(ids) });
+      await this.contactsRepository.remove(contacts);
+    } else {
+      const contacts = await this.contactsRepository.find({
+        where: { id: In(ids), assignedTo: { id: user.id } },
+        relations: ['assignedTo'],
+      });
+      await this.contactsRepository.remove(contacts);
+    }
   }
 }

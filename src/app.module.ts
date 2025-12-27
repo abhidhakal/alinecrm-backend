@@ -53,4 +53,3 @@ import { UnsubscribedEmail } from './entities/unsubscribed-email.entity';
   providers: [AppService],
 })
 export class AppModule { }
-

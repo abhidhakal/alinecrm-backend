@@ -20,7 +20,7 @@ export class LeadsService {
     private revenueRepository: Repository<Revenue>,
     @InjectRepository(User)
     private usersRepository: Repository<User>,
-  ) {}
+  ) { }
 
   async create(createLeadDto: CreateLeadDto, user: User): Promise<Lead> {
     const { contactId, assignedToIds, ...leadData } = createLeadDto;
@@ -48,7 +48,7 @@ export class LeadsService {
         throw new NotFoundException(`Contact with ID ${contactId} not found`);
       }
       lead.contact = contact;
-      
+
       // Auto-fill details from contact if not provided
       if (!lead.name) lead.name = contact.name;
       if (!lead.email) lead.email = contact.email;

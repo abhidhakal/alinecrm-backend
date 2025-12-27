@@ -13,7 +13,7 @@ export class UsersController {
   constructor(private readonly usersService: UsersService) { }
 
   @Get()
-  @Roles(Role.Admin, Role.SuperAdmin)
+  @Roles(Role.Admin, Role.SuperAdmin, Role.User)
   findAll() {
     return this.usersService.findAll();
   }
@@ -41,7 +41,7 @@ export class UsersController {
     if (req.user.role !== Role.Admin && req.user.role !== Role.SuperAdmin && req.user.userId !== userId) {
       throw new ForbiddenException('You can only update your own profile');
     }
-    
+
     // Prevent non-admins from changing their own role
     if (req.user.role !== Role.Admin && req.user.role !== Role.SuperAdmin && updateUserDto.role) {
       delete updateUserDto.role;
