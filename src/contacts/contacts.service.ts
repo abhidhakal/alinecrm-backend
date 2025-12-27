@@ -1,7 +1,6 @@
-
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, In } from 'typeorm';
 import { Contact } from '../entities/contact.entity';
 import { CreateContactDto } from './dto/create-contact.dto';
 import { UpdateContactDto } from './dto/update-contact.dto';
@@ -13,27 +12,33 @@ export class ContactsService {
   constructor(
     @InjectRepository(Contact)
     private contactsRepository: Repository<Contact>,
+    @InjectRepository(User)
+    private usersRepository: Repository<User>,
   ) { }
 
   async create(createContactDto: CreateContactDto, user: User): Promise<Contact> {
-    const { assignedToId, ...contactData } = createContactDto;
-    const contact = this.contactsRepository.create({
-      ...contactData,
-      user: assignedToId ? { id: assignedToId } as User : user,
-    });
+    const { assignedToIds, ...contactData } = createContactDto;
+    const contact = this.contactsRepository.create(contactData);
+    
+    if (assignedToIds && assignedToIds.length > 0) {
+      contact.assignedTo = await this.usersRepository.findBy({ id: In(assignedToIds) });
+    } else {
+      contact.assignedTo = [user];
+    }
+
     return await this.contactsRepository.save(contact);
   }
 
   async findAll(user: User): Promise<Contact[]> {
     if (user.role === Role.Admin || user.role === Role.SuperAdmin) {
       return await this.contactsRepository.find({
-        relations: ['user'],
+        relations: ['assignedTo'],
         order: { createdAt: 'DESC' },
       });
     }
     return await this.contactsRepository.find({
-      where: { user: { id: user.id } },
-      relations: ['user'],
+      where: { assignedTo: { id: user.id } },
+      relations: ['assignedTo'],
       order: { createdAt: 'DESC' },
     });
   }
@@ -42,7 +47,7 @@ export class ContactsService {
     if (user.role === Role.Admin || user.role === Role.SuperAdmin) {
       const contact = await this.contactsRepository.findOne({
         where: { id },
-        relations: ['user'],
+        relations: ['assignedTo'],
       });
       if (!contact) {
         throw new NotFoundException(`Contact with ID ${id} not found`);
@@ -50,8 +55,8 @@ export class ContactsService {
       return contact;
     }
     const contact = await this.contactsRepository.findOne({
-      where: { id, user: { id: user.id } },
-      relations: ['user'],
+      where: { id, assignedTo: { id: user.id } },
+      relations: ['assignedTo'],
     });
     if (!contact) {
       throw new NotFoundException(`Contact with ID ${id} not found`);
@@ -60,26 +65,23 @@ export class ContactsService {
   }
 
   async update(id: number, updateContactDto: UpdateContactDto, user: User): Promise<Contact> {
-    const { assignedToId, ...contactData } = updateContactDto;
+    const { assignedToIds, ...contactData } = updateContactDto;
     const contact = await this.findOne(id, user);
     Object.assign(contact, contactData);
-    if (assignedToId) {
-      contact.user = { id: assignedToId } as User;
+    
+    if (assignedToIds !== undefined) {
+      if (assignedToIds.length > 0) {
+        contact.assignedTo = await this.usersRepository.findBy({ id: In(assignedToIds) });
+      } else {
+        contact.assignedTo = [];
+      }
     }
+    
     return await this.contactsRepository.save(contact);
   }
 
   async remove(id: number, user: User): Promise<void> {
-    if (user.role === Role.Admin || user.role === Role.SuperAdmin) {
-      const result = await this.contactsRepository.delete({ id });
-      if (result.affected === 0) {
-        throw new NotFoundException(`Contact with ID ${id} not found`);
-      }
-      return;
-    }
-    const result = await this.contactsRepository.delete({ id, user: { id: user.id } });
-    if (result.affected === 0) {
-      throw new NotFoundException(`Contact with ID ${id} not found`);
-    }
+    const contact = await this.findOne(id, user);
+    await this.contactsRepository.remove(contact);
   }
 }

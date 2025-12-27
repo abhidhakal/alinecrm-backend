@@ -24,7 +24,9 @@ export class TasksService {
     // Set the creator
     task.assignedBy = user;
 
-    if (assignedToIds && assignedToIds.length > 0) {
+    if (user.role === Role.User) {
+      task.assignedTo = [user];
+    } else if (assignedToIds && assignedToIds.length > 0) {
       task.assignedTo = await this.userRepository.findBy({ id: In(assignedToIds) });
     } else {
       task.assignedTo = [user];
@@ -57,11 +59,26 @@ export class TasksService {
         order: { createdAt: 'DESC' },
       });
     }
+
+    // For regular users, find tasks they created OR are assigned to
+    // We use a two-step process to ensure we get the full task with all assignees,
+    // not just the current user in the assignedTo array (which can happen with filtering on relations)
+    const qb = this.taskRepository.createQueryBuilder('task')
+      .leftJoin('task.assignedTo', 'assignee')
+      .leftJoin('task.assignedBy', 'creator')
+      .select('task.id')
+      .where('creator.id = :userId', { userId: user.id })
+      .orWhere('assignee.id = :userId', { userId: user.id });
+
+    const tasks = await qb.getMany();
+    const taskIds = tasks.map(t => t.id);
+
+    if (taskIds.length === 0) {
+      return [];
+    }
+
     return this.taskRepository.find({
-      where: [
-        { assignedBy: { id: user.id } },
-        { assignedTo: { id: user.id } }
-      ],
+      where: { id: In(taskIds) },
       relations: ['assignedTo', 'assignedBy', 'relatedLead', 'relatedContact', 'relatedCampaign', 'relatedMindfulness', 'relatedRevenue'],
       order: { createdAt: 'DESC' },
     });

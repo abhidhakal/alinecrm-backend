@@ -1,5 +1,5 @@
-import { IsString, IsOptional, IsEmail, IsEnum, IsNumber, Min, Max } from 'class-validator';
-import { LeadStatus } from '../../entities/lead.entity';
+import { IsString, IsOptional, IsEmail, IsEnum, IsNumber, Min, Max, IsArray } from 'class-validator';
+import { LeadStatus, LeadSource } from '../../entities/lead.entity';
 
 export class CreateLeadDto {
   @IsString()
@@ -25,9 +25,13 @@ export class CreateLeadDto {
   @IsOptional()
   status?: LeadStatus;
 
+  @IsEnum(LeadSource)
+  @IsOptional()
+  source?: LeadSource;
+
   @IsString()
   @IsOptional()
-  source?: string;
+  inquiredFor?: string;
 
   @IsNumber()
   @IsOptional()
@@ -47,7 +51,8 @@ export class CreateLeadDto {
   @IsOptional()
   contactId?: number;
 
-  @IsNumber()
+  @IsArray()
+  @IsNumber({}, { each: true })
   @IsOptional()
-  assignedToId?: number;
+  assignedToIds?: number[];
 }

@@ -1,4 +1,4 @@
-import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, ManyToOne, OneToMany, JoinColumn } from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, ManyToMany, OneToMany, JoinTable, ManyToOne, JoinColumn } from 'typeorm';
 import { User } from './user.entity';
 import { Task } from './task.entity';
 import { Contact } from './contact.entity';
@@ -11,6 +11,13 @@ export enum LeadStatus {
   NEGOTIATION = 'Negotiation',
   CLOSED_WON = 'Closed Won',
   CLOSED_LOST = 'Closed Lost',
+}
+
+export enum LeadSource {
+  ORGANIC = 'Organic',
+  SOCIAL_MEDIA = 'Social Media',
+  WORD_OF_MOUTH = 'Word of Mouth',
+  CONTACTS = 'Contacts',
 }
 
 @Entity('leads')
@@ -40,8 +47,15 @@ export class Lead {
   })
   status: LeadStatus;
 
-  @Column({ nullable: true })
-  source: string; // e.g., LinkedIn, Website, Referral
+  @Column({
+    type: 'enum',
+    enum: LeadSource,
+    nullable: true
+  })
+  source: LeadSource;
+
+  @Column({ nullable: true, name: 'inquired_for' })
+  inquiredFor: string;
 
   @Column('decimal', { precision: 10, scale: 2, nullable: true, name: 'potential_value' })
   potentialValue: number;
@@ -52,12 +66,13 @@ export class Lead {
   @Column({ type: 'text', nullable: true })
   notes: string;
 
-  @Column({ name: 'assigned_to', nullable: true })
-  assignedToId: number;
-
-  @ManyToOne(() => User, (user) => user.leads)
-  @JoinColumn({ name: 'assigned_to' })
-  assignedTo: User;
+  @ManyToMany(() => User, (user) => user.leads)
+  @JoinTable({
+    name: 'lead_assignees',
+    joinColumn: { name: 'lead_id', referencedColumnName: 'id' },
+    inverseJoinColumn: { name: 'user_id', referencedColumnName: 'id' },
+  })
+  assignedTo: User[];
 
   @Column({ name: 'contact_id', nullable: true })
   contactId: number;

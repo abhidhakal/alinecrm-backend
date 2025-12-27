@@ -8,6 +8,8 @@ import { ContactsModule } from './contacts/contacts.module';
 import { TasksModule } from './tasks/tasks.module';
 import { LeadsModule } from './leads/leads.module';
 import { UsersModule } from './users/users.module';
+import { UploadModule } from './upload/upload.module';
+import { CampaignsModule } from './campaigns/campaigns.module';
 import { Role } from './entities/role.entity';
 import { User } from './entities/user.entity';
 import { Contact } from './entities/contact.entity';
@@ -17,6 +19,10 @@ import { Task } from './entities/task.entity';
 import { Campaign } from './entities/campaign.entity';
 import { CampaignRecipient } from './entities/campaign_recipient.entity';
 import { Mindfulness } from './entities/mindfulness.entity';
+import { EmailCampaign } from './entities/email-campaign.entity';
+import { EmailCampaignRecipient } from './entities/email-campaign-recipient.entity';
+import { EmailEvent } from './entities/email-event.entity';
+import { UnsubscribedEmail } from './entities/unsubscribed-email.entity';
 
 @Module({
   imports: [
@@ -28,7 +34,9 @@ import { Mindfulness } from './entities/mindfulness.entity';
       url: process.env.DATABASE_URL,
       entities: [
         Role, User,
-        Contact, Lead, Revenue, Task, Campaign, CampaignRecipient, Mindfulness
+        Contact, Lead, Revenue, Task, Campaign, CampaignRecipient, Mindfulness,
+        // Email Campaign entities
+        EmailCampaign, EmailCampaignRecipient, EmailEvent, UnsubscribedEmail,
       ],
       synchronize: true, // Auto-create tables (disable in production)
       logging: false,
@@ -38,7 +46,8 @@ import { Mindfulness } from './entities/mindfulness.entity';
     TasksModule,
     LeadsModule,
     UsersModule,
-    // other modules like AuthModule can be added here later
+    UploadModule,
+    CampaignsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

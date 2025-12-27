@@ -1,4 +1,4 @@
-import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, OneToMany, ManyToOne, JoinColumn } from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, OneToMany, ManyToMany, JoinTable } from 'typeorm';
 import { Task } from './task.entity';
 import { User } from './user.entity';
 
@@ -32,12 +32,13 @@ export class Contact {
   })
   priority: string;
 
-  @Column({ name: 'user_id' })
-  userId: number;
-
-  @ManyToOne(() => User, (user) => user.contacts)
-  @JoinColumn({ name: 'user_id' })
-  user: User;
+  @ManyToMany(() => User, (user) => user.contacts)
+  @JoinTable({
+    name: 'contact_assignees',
+    joinColumn: { name: 'contact_id', referencedColumnName: 'id' },
+    inverseJoinColumn: { name: 'user_id', referencedColumnName: 'id' },
+  })
+  assignedTo: User[];
 
   @OneToMany(() => Task, (task) => task.relatedContact)
   tasks: Task[];

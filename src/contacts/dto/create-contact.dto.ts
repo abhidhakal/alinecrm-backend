@@ -1,5 +1,5 @@
 
-import { IsNotEmpty, IsString, IsEmail, IsOptional, IsEnum, IsNumber } from 'class-validator';
+import { IsNotEmpty, IsString, IsEmail, IsOptional, IsEnum, IsNumber, IsArray } from 'class-validator';
 
 export class CreateContactDto {
   @IsString()
@@ -30,7 +30,8 @@ export class CreateContactDto {
   @IsOptional()
   priority?: string;
 
-  @IsNumber()
+  @IsArray()
+  @IsNumber({}, { each: true })
   @IsOptional()
-  assignedToId?: number;
+  assignedToIds?: number[];
 }

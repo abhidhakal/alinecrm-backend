@@ -34,7 +34,10 @@ export class User {
   @Column({ default: 'user' })
   role: string;
 
-  @OneToMany(() => Lead, (lead) => lead.assignedTo)
+  @Column({ name: 'profile_picture', nullable: true })
+  profilePicture: string;
+
+  @ManyToMany(() => Lead, (lead) => lead.assignedTo)
   leads: Lead[];
 
   @ManyToMany(() => Task, (task) => task.assignedTo)
@@ -49,7 +52,7 @@ export class User {
   @OneToMany(() => Mindfulness, (mindfulness) => mindfulness.user)
   mindfulnessSessions: Mindfulness[];
 
-  @OneToMany(() => Contact, (contact) => contact.user)
+  @ManyToMany(() => Contact, (contact) => contact.assignedTo)
   contacts: Contact[];
 
   @OneToMany(() => Revenue, (revenue) => revenue.user)

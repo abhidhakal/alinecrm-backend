@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, In } from 'typeorm';
 import { Lead, LeadStatus } from '../entities/lead.entity';
 import { Contact } from '../entities/contact.entity';
 import { Revenue } from '../entities/revenue.entity';
@@ -18,21 +18,28 @@ export class LeadsService {
     private contactsRepository: Repository<Contact>,
     @InjectRepository(Revenue)
     private revenueRepository: Repository<Revenue>,
+    @InjectRepository(User)
+    private usersRepository: Repository<User>,
   ) {}
 
   async create(createLeadDto: CreateLeadDto, user: User): Promise<Lead> {
-    const { contactId, assignedToId, ...leadData } = createLeadDto;
+    const { contactId, assignedToIds, ...leadData } = createLeadDto;
 
     const lead = this.leadsRepository.create({
       ...leadData,
-      assignedTo: assignedToId ? { id: assignedToId } as User : user,
       status: leadData.status || LeadStatus.NEW,
     });
+
+    if (assignedToIds && assignedToIds.length > 0) {
+      lead.assignedTo = await this.usersRepository.findBy({ id: In(assignedToIds) });
+    } else {
+      lead.assignedTo = [user];
+    }
 
     if (contactId) {
       const whereClause: any = { id: contactId };
       if (user.role !== Role.Admin && user.role !== Role.SuperAdmin) {
-        whereClause.user = { id: user.id };
+        whereClause.assignedTo = { id: user.id };
       }
       const contact = await this.contactsRepository.findOne({
         where: whereClause,
@@ -84,15 +91,19 @@ export class LeadsService {
   }
 
   async update(id: number, updateLeadDto: UpdateLeadDto, user: User): Promise<Lead> {
-    const { assignedToId, ...updateData } = updateLeadDto;
+    const { assignedToIds, ...updateData } = updateLeadDto;
     const lead = await this.findOne(id, user);
     const previousStatus = lead.status;
 
     // Update fields
     Object.assign(lead, updateData);
 
-    if (assignedToId) {
-      lead.assignedTo = { id: assignedToId } as User;
+    if (assignedToIds !== undefined) {
+      if (assignedToIds.length > 0) {
+        lead.assignedTo = await this.usersRepository.findBy({ id: In(assignedToIds) });
+      } else {
+        lead.assignedTo = [];
+      }
     }
 
     // Check for status change to CLOSED_WON
