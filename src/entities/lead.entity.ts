@@ -18,6 +18,7 @@ export enum LeadSource {
   SOCIAL_MEDIA = 'Social Media',
   WORD_OF_MOUTH = 'Word of Mouth',
   CONTACTS = 'Contacts',
+  REFERRAL = 'Referral',
 }
 
 @Entity('leads')

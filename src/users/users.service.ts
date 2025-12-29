@@ -71,6 +71,7 @@ export class UsersService {
     if (dto.email) user.email = dto.email;
     if (dto.role) user.role = dto.role;
     if (dto.profilePicture !== undefined) user.profilePicture = dto.profilePicture;
+    if (dto.currency) user.currency = dto.currency;
 
     const updatedUser = await this.userRepository.save(user);
     const { passwordHash, ...result } = updatedUser;
@@ -80,12 +81,12 @@ export class UsersService {
   async remove(id: number) {
     const user = await this.userRepository.findOne({ where: { id } });
     if (!user) throw new NotFoundException(`User with ID ${id} not found`);
-    
+
     // Delete profile picture from Cloudinary if exists
     if (user.profilePicture) {
       await this.uploadService.deleteProfilePicture(user.profilePicture);
     }
-    
+
     await this.userRepository.remove(user);
     return { message: 'User deleted successfully' };
   }

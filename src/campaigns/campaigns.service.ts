@@ -765,4 +765,20 @@ export class CampaignsService {
 
     return { items, total };
   }
+
+  async removeUnsubscribe(email: string): Promise<void> {
+    await this.unsubscribedRepository.delete({ email: email.toLowerCase() });
+  }
+
+  async unsubscribeEmail(email: string, reason?: string): Promise<UnsubscribedEmail> {
+    const lowerEmail = email.toLowerCase();
+    let existing = await this.unsubscribedRepository.findOne({ where: { email: lowerEmail } });
+    if (existing) return existing;
+
+    const unsubscribed = this.unsubscribedRepository.create({
+      email: lowerEmail,
+      reason,
+    });
+    return this.unsubscribedRepository.save(unsubscribed);
+  }
 }

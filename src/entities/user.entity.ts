@@ -58,6 +58,9 @@ export class User {
   @OneToMany(() => Revenue, (revenue) => revenue.user)
   revenues: Revenue[];
 
+  @Column({ default: 'NPR' })
+  currency: string;
+
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;
 

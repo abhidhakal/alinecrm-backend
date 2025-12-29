@@ -10,6 +10,7 @@ import { LeadsModule } from './leads/leads.module';
 import { UsersModule } from './users/users.module';
 import { UploadModule } from './upload/upload.module';
 import { CampaignsModule } from './campaigns/campaigns.module';
+import { TemplatesModule } from './templates/templates.module';
 import { Role } from './entities/role.entity';
 import { User } from './entities/user.entity';
 import { Contact } from './entities/contact.entity';
@@ -23,6 +24,7 @@ import { EmailCampaign } from './entities/email-campaign.entity';
 import { EmailCampaignRecipient } from './entities/email-campaign-recipient.entity';
 import { EmailEvent } from './entities/email-event.entity';
 import { UnsubscribedEmail } from './entities/unsubscribed-email.entity';
+import { EmailTemplate } from './entities/email-template.entity';
 
 @Module({
   imports: [
@@ -36,7 +38,7 @@ import { UnsubscribedEmail } from './entities/unsubscribed-email.entity';
         Role, User,
         Contact, Lead, Revenue, Task, Campaign, CampaignRecipient, Mindfulness,
         // Email Campaign entities
-        EmailCampaign, EmailCampaignRecipient, EmailEvent, UnsubscribedEmail,
+        EmailCampaign, EmailCampaignRecipient, EmailEvent, UnsubscribedEmail, EmailTemplate,
       ],
       synchronize: true, // Auto-create tables (disable in production)
       logging: false,
@@ -48,6 +50,7 @@ import { UnsubscribedEmail } from './entities/unsubscribed-email.entity';
     UsersModule,
     UploadModule,
     CampaignsModule,
+    TemplatesModule,
   ],
   controllers: [AppController],
   providers: [AppService],

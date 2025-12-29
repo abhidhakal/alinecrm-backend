@@ -112,4 +112,29 @@ export class CampaignsController {
     );
     return { estimatedCount: count };
   }
+
+  /**
+   * Get global unsubscribe list
+   */
+  @Get('settings/unsubscribed')
+  async getUnsubscribed(@Query('page') page?: number, @Query('limit') limit?: number) {
+    return this.campaignsService.getUnsubscribedList(page, limit);
+  }
+
+  /**
+   * Manually unsubscribe an email
+   */
+  @Post('settings/unsubscribed')
+  async addUnsubscribed(@Body() data: { email: string; reason?: string }) {
+    return this.campaignsService.unsubscribeEmail(data.email, data.reason);
+  }
+
+  /**
+   * Remove email from unsubscribe list
+   */
+  @Delete('settings/unsubscribed/:email')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  async removeUnsubscribed(@Param('email') email: string) {
+    return this.campaignsService.removeUnsubscribe(email);
+  }
 }

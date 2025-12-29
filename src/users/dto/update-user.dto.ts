@@ -22,4 +22,8 @@ export class UpdateUserDto {
   @IsString()
   @IsOptional()
   profilePicture?: string;
+
+  @IsString()
+  @IsOptional()
+  currency?: string;
 }
