@@ -1,19 +1,21 @@
-import {
-  Entity,
-  PrimaryGeneratedColumn,
-  Column,
-  CreateDateColumn,
-  Index,
-} from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, Index, ManyToOne, JoinColumn } from 'typeorm';
+import { Institution } from './institution.entity';
 
 @Entity('unsubscribed_emails')
-@Index(['email'], { unique: true })
+@Index(['email', 'institutionId'], { unique: true })
 export class UnsubscribedEmail {
   @PrimaryGeneratedColumn()
   id: number;
 
-  @Column({ unique: true })
+  @Column()
   email: string;
+
+  @ManyToOne(() => Institution)
+  @JoinColumn({ name: 'institution_id' })
+  institution: Institution;
+
+  @Column({ name: 'institution_id' })
+  institutionId: number;
 
   // Source campaign that triggered unsubscribe (if known)
   @Column({ type: 'int', name: 'source_campaign_id', nullable: true })

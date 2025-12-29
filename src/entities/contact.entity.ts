@@ -1,6 +1,7 @@
-import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, OneToMany, ManyToMany, JoinTable } from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, OneToMany, ManyToMany, JoinTable, ManyToOne, JoinColumn } from 'typeorm';
 import { Task } from './task.entity';
 import { User } from './user.entity';
+import { Institution } from './institution.entity';
 
 @Entity('contacts')
 export class Contact {
@@ -42,6 +43,13 @@ export class Contact {
 
   @OneToMany(() => Task, (task) => task.relatedContact)
   tasks: Task[];
+
+  @ManyToOne(() => Institution, { nullable: true })
+  @JoinColumn({ name: 'institution_id' })
+  institution: Institution;
+
+  @Column({ name: 'institution_id', nullable: true })
+  institutionId: number;
 
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;

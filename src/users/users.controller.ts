@@ -14,8 +14,8 @@ export class UsersController {
 
   @Get()
   @Roles(Role.Admin, Role.SuperAdmin, Role.User)
-  findAll() {
-    return this.usersService.findAll();
+  findAll(@Request() req: any) {
+    return this.usersService.findAll(req.user.institutionId);
   }
 
   @Get(':id')
@@ -25,13 +25,15 @@ export class UsersController {
     if (req.user.role !== Role.Admin && req.user.role !== Role.SuperAdmin && req.user.userId !== userId) {
       throw new ForbiddenException('You can only view your own profile');
     }
-    return this.usersService.findOne(userId);
+    // Note: If I am requesting my own profile, my institutionId matches. 
+    // If I am admin requesting another user, strict query ensures I only see my company's users.
+    return this.usersService.findOne(userId, req.user.institutionId);
   }
 
   @Post()
   @Roles(Role.Admin, Role.SuperAdmin)
-  create(@Body() createUserDto: CreateUserDto) {
-    return this.usersService.create(createUserDto);
+  create(@Body() createUserDto: CreateUserDto, @Request() req: any) {
+    return this.usersService.create(createUserDto, req.user.institutionId);
   }
 
   @Patch(':id')
@@ -47,12 +49,12 @@ export class UsersController {
       delete updateUserDto.role;
     }
 
-    return this.usersService.update(userId, updateUserDto);
+    return this.usersService.update(userId, updateUserDto, req.user.institutionId);
   }
 
   @Delete(':id')
   @Roles(Role.Admin, Role.SuperAdmin)
-  remove(@Param('id') id: string) {
-    return this.usersService.remove(+id);
+  remove(@Param('id') id: string, @Request() req: any) {
+    return this.usersService.remove(+id, req.user.institutionId);
   }
 }

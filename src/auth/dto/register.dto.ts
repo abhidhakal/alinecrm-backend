@@ -16,4 +16,8 @@ export class RegisterDto {
   @IsString()
   @IsIn(['user', 'admin', 'superadmin'])
   role?: string;
+
+  @IsString()
+  @IsNotEmpty()
+  companyName: string;
 }

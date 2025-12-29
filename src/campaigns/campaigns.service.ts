@@ -7,6 +7,7 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, In, MoreThanOrEqual, LessThanOrEqual, Not, IsNull } from 'typeorm';
 import { ConfigService } from '@nestjs/config';
+import { Role } from '../auth/role.enum';
 import {
   EmailCampaign,
   CampaignStatus,
@@ -75,6 +76,7 @@ export class CampaignsService {
         : null,
       createdById: user.id,
       status: CampaignStatus.DRAFT,
+      institutionId: user.institutionId, // Assign to institution
     });
 
     const savedCampaign = await this.campaignRepository.save(campaign);
@@ -82,6 +84,7 @@ export class CampaignsService {
     // Calculate estimated recipients
     const estimatedCount = await this.estimateRecipientCount(
       savedCampaign.audienceFilters,
+      user.institutionId // Pass institutionId
     );
     savedCampaign.totalRecipients = estimatedCount;
     await this.campaignRepository.save(savedCampaign);
@@ -90,15 +93,31 @@ export class CampaignsService {
   }
 
   async findAll(user: User): Promise<EmailCampaign[]> {
+    if (user.role === Role.Admin || user.role === Role.SuperAdmin) {
+      return this.campaignRepository.find({
+        where: { institutionId: user.institutionId },
+        order: { createdAt: 'DESC' },
+        relations: ['createdBy'],
+      });
+    }
     return this.campaignRepository.find({
+      where: { createdById: user.id, institutionId: user.institutionId },
       order: { createdAt: 'DESC' },
       relations: ['createdBy'],
     });
   }
 
-  async findOne(id: number): Promise<EmailCampaign> {
+  async findOne(id: number, user?: User): Promise<EmailCampaign> {
+    const where: any = { id };
+    if (user) {
+      where.institutionId = user.institutionId;
+      if (user.role !== Role.Admin && user.role !== Role.SuperAdmin) {
+        where.createdById = user.id;
+      }
+    }
+
     const campaign = await this.campaignRepository.findOne({
-      where: { id },
+      where,
       relations: ['createdBy'],
     });
 
@@ -114,7 +133,7 @@ export class CampaignsService {
     updateCampaignDto: UpdateCampaignDto,
     user: User,
   ): Promise<EmailCampaign> {
-    const campaign = await this.findOne(id);
+    const campaign = await this.findOne(id, user);
 
     // Can't update campaigns that are sending or sent
     if (
@@ -135,6 +154,7 @@ export class CampaignsService {
     if (updateCampaignDto.audienceFilters) {
       const estimatedCount = await this.estimateRecipientCount(
         campaign.audienceFilters,
+        user.institutionId
       );
       campaign.totalRecipients = estimatedCount;
     }
@@ -143,7 +163,7 @@ export class CampaignsService {
   }
 
   async remove(id: number, user: User): Promise<void> {
-    const campaign = await this.findOne(id);
+    const campaign = await this.findOne(id, user);
 
     if (campaign.status === CampaignStatus.SENDING) {
       throw new BadRequestException('Cannot delete a campaign that is currently sending');
@@ -153,7 +173,7 @@ export class CampaignsService {
   }
 
   async duplicate(id: number, user: User): Promise<EmailCampaign> {
-    const original = await this.findOne(id);
+    const original = await this.findOne(id, user);
 
     const duplicate = this.campaignRepository.create({
       name: `${original.name} (Copy)`,
@@ -165,6 +185,7 @@ export class CampaignsService {
       provider: original.provider,
       audienceFilters: original.audienceFilters,
       createdById: user.id,
+      institutionId: user.institutionId, // Set institution
       status: CampaignStatus.DRAFT,
     });
 
@@ -177,23 +198,23 @@ export class CampaignsService {
   // AUDIENCE RESOLUTION
   // ============================================
 
-  async estimateRecipientCount(audienceFilters: AudienceFilter): Promise<number> {
-    const recipients = await this.resolveAudience(audienceFilters);
+  async estimateRecipientCount(audienceFilters: AudienceFilter, institutionId: number): Promise<number> {
+    const recipients = await this.resolveAudience(audienceFilters, institutionId);
     return recipients.length;
   }
 
-  async resolveAudience(audienceFilters: AudienceFilter): Promise<RecipientData[]> {
+  async resolveAudience(audienceFilters: AudienceFilter, institutionId: number): Promise<RecipientData[]> {
     const { source, filters } = audienceFilters;
 
-    // Get unsubscribed emails to exclude
-    const unsubscribedEmails = await this.getUnsubscribedEmails();
+    // Get unsubscribed emails to exclude (scoped to institution)
+    const unsubscribedEmails = await this.getUnsubscribedEmails(institutionId);
 
     let recipients: RecipientData[] = [];
 
     if (source === AudienceSource.CONTACTS) {
-      recipients = await this.resolveContactsAudience(filters);
+      recipients = await this.resolveContactsAudience(filters, institutionId);
     } else if (source === AudienceSource.LEADS) {
-      recipients = await this.resolveLeadsAudience(filters);
+      recipients = await this.resolveLeadsAudience(filters, institutionId);
     }
 
     // Filter out unsubscribed emails
@@ -215,11 +236,13 @@ export class CampaignsService {
 
   private async resolveContactsAudience(
     filters: AudienceFilter['filters'],
+    institutionId: number,
   ): Promise<RecipientData[]> {
     const queryBuilder = this.contactRepository
       .createQueryBuilder('contact')
       .where('contact.email IS NOT NULL')
-      .andWhere("contact.email != ''");
+      .andWhere("contact.email != ''")
+      .andWhere('contact.institutionId = :institutionId', { institutionId });
 
     // Apply priority filter
     if (filters.priority && filters.priority.length > 0) {
@@ -252,11 +275,13 @@ export class CampaignsService {
 
   private async resolveLeadsAudience(
     filters: AudienceFilter['filters'],
+    institutionId: number,
   ): Promise<RecipientData[]> {
     const queryBuilder = this.leadRepository
       .createQueryBuilder('lead')
       .where('lead.email IS NOT NULL')
-      .andWhere("lead.email != ''");
+      .andWhere("lead.email != ''")
+      .andWhere('lead.institutionId = :institutionId', { institutionId });
 
     // Apply status filter
     if (filters.status && filters.status.length > 0) {
@@ -294,8 +319,10 @@ export class CampaignsService {
     }));
   }
 
-  private async getUnsubscribedEmails(): Promise<Set<string>> {
-    const unsubscribed = await this.unsubscribedRepository.find();
+  private async getUnsubscribedEmails(institutionId: number): Promise<Set<string>> {
+    const unsubscribed = await this.unsubscribedRepository.find({
+      where: { institutionId },
+    });
     return new Set(unsubscribed.map((u) => u.email.toLowerCase()));
   }
 
@@ -310,7 +337,7 @@ export class CampaignsService {
   ): Promise<{ success: boolean; message: string; recipientCount: number }> {
     this.logger.log(`[DEBUG] sendCampaign initiated for Campaign ID: ${id}`);
 
-    const campaign = await this.findOne(id);
+    const campaign = await this.findOne(id, user);
 
     // Validate campaign can be sent
     if (campaign.status === CampaignStatus.SENDING) {
@@ -331,7 +358,7 @@ export class CampaignsService {
 
     // Resolve audience dynamically
     this.logger.log(`[DEBUG] Resolving audience...`);
-    const recipients = await this.resolveAudience(campaign.audienceFilters);
+    const recipients = await this.resolveAudience(campaign.audienceFilters, user.institutionId);
     this.logger.log(`[DEBUG] Resolved ${recipients.length} recipients`);
 
     if (recipients.length === 0) {
@@ -507,7 +534,7 @@ export class CampaignsService {
   // STATISTICS
   // ============================================
 
-  async getStats(id: number): Promise<{
+  async getStats(id: number, user: User): Promise<{
     campaign: EmailCampaign;
     stats: {
       totalRecipients: number;
@@ -523,7 +550,7 @@ export class CampaignsService {
     };
     recentEvents: EmailEvent[];
   }> {
-    const campaign = await this.findOne(id);
+    const campaign = await this.findOne(id, user);
 
     // Get event counts
     const eventCounts = await this.eventRepository
@@ -697,12 +724,24 @@ export class CampaignsService {
     campaignId?: number,
     ipAddress?: string,
     userAgent?: string,
+    institutionId?: number, // Add institutionId
   ): Promise<boolean> {
     const lowerEmail = email.toLowerCase();
+    
+    // Resolve institutionId if not provided but campaignId is
+    if (!institutionId && campaignId) {
+        const campaign = await this.campaignRepository.findOne({ where: { id: campaignId } });
+        if (campaign) institutionId = campaign.institutionId;
+    }
+
+    if (!institutionId) {
+        this.logger.warn(`Cannot unsubscribe ${email} without institution context`);
+        return false;
+    }
 
     // Check if already unsubscribed
     const existing = await this.unsubscribedRepository.findOne({
-      where: { email: lowerEmail },
+      where: { email: lowerEmail, institutionId },
     });
 
     if (existing) {
@@ -713,6 +752,7 @@ export class CampaignsService {
     const unsubscribed = this.unsubscribedRepository.create({
       email: lowerEmail,
       sourceCampaignId: campaignId,
+      institutionId, // Set institution
       ipAddress,
       userAgent,
     });
@@ -756,8 +796,10 @@ export class CampaignsService {
   async getUnsubscribedList(
     page: number = 1,
     limit: number = 50,
+    institutionId: number, // Add institutionId
   ): Promise<{ items: UnsubscribedEmail[]; total: number }> {
     const [items, total] = await this.unsubscribedRepository.findAndCount({
+      where: { institutionId },
       order: { unsubscribedAt: 'DESC' },
       skip: (page - 1) * limit,
       take: limit,
@@ -766,18 +808,22 @@ export class CampaignsService {
     return { items, total };
   }
 
-  async removeUnsubscribe(email: string): Promise<void> {
-    await this.unsubscribedRepository.delete({ email: email.toLowerCase() });
+  async removeUnsubscribe(email: string, institutionId: number): Promise<void> {
+    await this.unsubscribedRepository.delete({ 
+        email: email.toLowerCase(),
+        institutionId 
+    });
   }
 
-  async unsubscribeEmail(email: string, reason?: string): Promise<UnsubscribedEmail> {
+  async unsubscribeEmail(email: string, institutionId: number, reason?: string): Promise<UnsubscribedEmail> {
     const lowerEmail = email.toLowerCase();
-    let existing = await this.unsubscribedRepository.findOne({ where: { email: lowerEmail } });
+    let existing = await this.unsubscribedRepository.findOne({ where: { email: lowerEmail, institutionId } });
     if (existing) return existing;
 
     const unsubscribed = this.unsubscribedRepository.create({
       email: lowerEmail,
       reason,
+      institutionId,
     });
     return this.unsubscribedRepository.save(unsubscribed);
   }

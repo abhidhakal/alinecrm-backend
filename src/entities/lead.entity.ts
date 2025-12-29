@@ -2,6 +2,8 @@ import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateCol
 import { User } from './user.entity';
 import { Task } from './task.entity';
 import { Contact } from './contact.entity';
+import { Institution } from './institution.entity';
+
 
 export enum LeadStatus {
   NEW = 'New',
@@ -81,6 +83,13 @@ export class Lead {
   @ManyToOne(() => Contact, { nullable: true })
   @JoinColumn({ name: 'contact_id' })
   contact: Contact;
+
+  @ManyToOne(() => Institution, { nullable: true })
+  @JoinColumn({ name: 'institution_id' })
+  institution: Institution;
+
+  @Column({ name: 'institution_id', nullable: true })
+  institutionId: number;
 
   @OneToMany(() => Task, (task) => task.relatedLead)
   tasks: Task[];

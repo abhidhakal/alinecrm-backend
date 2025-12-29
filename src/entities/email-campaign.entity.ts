@@ -11,6 +11,7 @@ import {
 import { User } from './user.entity';
 import { EmailCampaignRecipient } from './email-campaign-recipient.entity';
 import { EmailEvent } from './email-event.entity';
+import { Institution } from './institution.entity';
 
 export enum CampaignStatus {
   DRAFT = 'draft',
@@ -117,6 +118,13 @@ export class EmailCampaign {
 
   @Column({ name: 'created_by', nullable: true })
   createdById: number;
+
+  @ManyToOne(() => Institution)
+  @JoinColumn({ name: 'institution_id' })
+  institution: Institution;
+
+  @Column({ name: 'institution_id' })
+  institutionId: number;
 
   @OneToMany(() => EmailCampaignRecipient, (recipient) => recipient.campaign)
   recipients: EmailCampaignRecipient[];

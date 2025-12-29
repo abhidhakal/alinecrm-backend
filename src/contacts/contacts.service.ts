@@ -18,7 +18,10 @@ export class ContactsService {
 
   async create(createContactDto: CreateContactDto, user: User): Promise<Contact> {
     const { assignedToIds, ...contactData } = createContactDto;
-    const contact = this.contactsRepository.create(contactData);
+    const contact = this.contactsRepository.create({
+      ...contactData,
+      institutionId: user.institutionId, // Assign institution
+    });
 
     if (assignedToIds && assignedToIds.length > 0) {
       contact.assignedTo = await this.usersRepository.findBy({ id: In(assignedToIds) });
@@ -34,7 +37,10 @@ export class ContactsService {
 
     for (const dto of createContactDtos) {
       const { assignedToIds, ...contactData } = dto;
-      const contact = this.contactsRepository.create(contactData);
+      const contact = this.contactsRepository.create({
+        ...contactData,
+        institutionId: user.institutionId, // Assign institution
+      });
 
       if (assignedToIds && assignedToIds.length > 0) {
         contact.assignedTo = await this.usersRepository.findBy({ id: In(assignedToIds) });
@@ -50,32 +56,33 @@ export class ContactsService {
   async findAll(user: User): Promise<Contact[]> {
     if (user.role === Role.Admin || user.role === Role.SuperAdmin) {
       return await this.contactsRepository.find({
+        where: { institutionId: user.institutionId }, // Restrict to institution
         relations: ['assignedTo'],
         order: { createdAt: 'DESC' },
       });
     }
     return await this.contactsRepository.find({
-      where: { assignedTo: { id: user.id } },
+      where: {
+        assignedTo: { id: user.id },
+        institutionId: user.institutionId // Restrict to institution (redundant but safe)
+      },
       relations: ['assignedTo'],
       order: { createdAt: 'DESC' },
     });
   }
 
   async findOne(id: number, user: User): Promise<Contact> {
-    if (user.role === Role.Admin || user.role === Role.SuperAdmin) {
-      const contact = await this.contactsRepository.findOne({
-        where: { id },
-        relations: ['assignedTo'],
-      });
-      if (!contact) {
-        throw new NotFoundException(`Contact with ID ${id} not found`);
-      }
-      return contact;
+    const where: any = { id, institutionId: user.institutionId };
+
+    if (user.role !== Role.Admin && user.role !== Role.SuperAdmin) {
+      where.assignedTo = { id: user.id };
     }
+
     const contact = await this.contactsRepository.findOne({
-      where: { id, assignedTo: { id: user.id } },
+      where,
       relations: ['assignedTo'],
     });
+
     if (!contact) {
       throw new NotFoundException(`Contact with ID ${id} not found`);
     }
@@ -84,7 +91,7 @@ export class ContactsService {
 
   async update(id: number, updateContactDto: UpdateContactDto, user: User): Promise<Contact> {
     const { assignedToIds, ...contactData } = updateContactDto;
-    const contact = await this.findOne(id, user);
+    const contact = await this.findOne(id, user); // findOne already checks access
     Object.assign(contact, contactData);
 
     if (assignedToIds !== undefined) {
@@ -99,20 +106,22 @@ export class ContactsService {
   }
 
   async remove(id: number, user: User): Promise<void> {
-    const contact = await this.findOne(id, user);
+    const contact = await this.findOne(id, user); // findOne already checks access
     await this.contactsRepository.remove(contact);
   }
 
   async bulkRemove(ids: number[], user: User): Promise<void> {
-    if (user.role === Role.Admin || user.role === Role.SuperAdmin) {
-      const contacts = await this.contactsRepository.findBy({ id: In(ids) });
-      await this.contactsRepository.remove(contacts);
-    } else {
-      const contacts = await this.contactsRepository.find({
-        where: { id: In(ids), assignedTo: { id: user.id } },
-        relations: ['assignedTo'],
-      });
-      await this.contactsRepository.remove(contacts);
+    const where: any = { id: In(ids), institutionId: user.institutionId };
+
+    if (user.role !== Role.Admin && user.role !== Role.SuperAdmin) {
+      where.assignedTo = { id: user.id };
     }
+
+    const contacts = await this.contactsRepository.find({
+      where,
+      relations: ['assignedTo'],
+    });
+
+    await this.contactsRepository.remove(contacts);
   }
 }

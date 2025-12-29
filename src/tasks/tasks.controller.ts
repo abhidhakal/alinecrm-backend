@@ -12,31 +12,31 @@ export class TasksController {
 
   @Post()
   create(@Body() createTaskDto: CreateTaskDto, @Request() req) {
-    const user = { id: req.user.userId, role: req.user.role } as User;
+    const user = { id: req.user.userId, role: req.user.role, institutionId: req.user.institutionId } as User;
     return this.tasksService.create(createTaskDto, user);
   }
 
   @Get()
   findAll(@Request() req) {
-    const user = { id: req.user.userId, role: req.user.role } as User;
+    const user = { id: req.user.userId, role: req.user.role, institutionId: req.user.institutionId } as User;
     return this.tasksService.findAll(user);
   }
 
   @Get(':id')
   findOne(@Param('id', ParseIntPipe) id: number, @Request() req) {
-    const user = { id: req.user.userId, role: req.user.role } as User;
+    const user = { id: req.user.userId, role: req.user.role, institutionId: req.user.institutionId } as User;
     return this.tasksService.findOne(id, user);
   }
 
   @Patch(':id')
   update(@Param('id', ParseIntPipe) id: number, @Body() updateTaskDto: UpdateTaskDto, @Request() req) {
-    const user = { id: req.user.userId, role: req.user.role } as User;
+    const user = { id: req.user.userId, role: req.user.role, institutionId: req.user.institutionId } as User;
     return this.tasksService.update(id, updateTaskDto, user);
   }
 
   @Delete(':id')
   remove(@Param('id', ParseIntPipe) id: number, @Request() req) {
-    const user = { id: req.user.userId, role: req.user.role } as User;
+    const user = { id: req.user.userId, role: req.user.role, institutionId: req.user.institutionId } as User;
     return this.tasksService.remove(id, user);
   }
 }

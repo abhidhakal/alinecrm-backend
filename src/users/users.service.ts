@@ -15,22 +15,24 @@ export class UsersService {
     private uploadService: UploadService,
   ) { }
 
-  async findAll() {
+  async findAll(institutionId: number) {
+    if (!institutionId) return []; // Safety check
     return this.userRepository.find({
-      select: ['id', 'name', 'email', 'role', 'profilePicture'], // Don't return passwordHash
+      where: { institutionId },
+      select: ['id', 'name', 'email', 'role', 'profilePicture'],
     });
   }
 
-  async findOne(id: number) {
+  async findOne(id: number, institutionId: number) {
     const user = await this.userRepository.findOne({
-      where: { id },
+      where: { id, institutionId },
       select: ['id', 'name', 'email', 'role', 'profilePicture']
     });
     if (!user) throw new NotFoundException(`User with ID ${id} not found`);
     return user;
   }
 
-  async create(dto: CreateUserDto) {
+  async create(dto: CreateUserDto, institutionId: number) {
     const existingUser = await this.userRepository.findOne({
       where: { email: dto.email }
     });
@@ -40,6 +42,7 @@ export class UsersService {
     const user = this.userRepository.create({
       ...dto,
       passwordHash: hashedPassword,
+      institutionId, // Assign to current admin's institution
     });
 
     const savedUser = await this.userRepository.save(user);
@@ -47,8 +50,8 @@ export class UsersService {
     return result;
   }
 
-  async update(id: number, dto: UpdateUserDto) {
-    const user = await this.userRepository.findOne({ where: { id } });
+  async update(id: number, dto: UpdateUserDto, institutionId: number) {
+    const user = await this.userRepository.findOne({ where: { id, institutionId } });
     if (!user) throw new NotFoundException(`User with ID ${id} not found`);
 
     if (dto.email && dto.email !== user.email) {
@@ -78,8 +81,8 @@ export class UsersService {
     return result;
   }
 
-  async remove(id: number) {
-    const user = await this.userRepository.findOne({ where: { id } });
+  async remove(id: number, institutionId: number) {
+    const user = await this.userRepository.findOne({ where: { id, institutionId } });
     if (!user) throw new NotFoundException(`User with ID ${id} not found`);
 
     // Delete profile picture from Cloudinary if exists

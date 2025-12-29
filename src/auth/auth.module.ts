@@ -8,10 +8,11 @@ import { JwtStrategy } from './jwt.strategy';
 import { JwtAuthGuard } from './jwt-auth.guard';
 import { User } from '../entities/user.entity';
 import { Role } from '../entities/role.entity';
+import { Institution } from '../entities/institution.entity';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([User, Role]),
+    TypeOrmModule.forFeature([User, Role, Institution]),
     PassportModule, // Import PassportModule
     JwtModule.register({
       secret: process.env.JWT_SECRET || 'your-secret-key',

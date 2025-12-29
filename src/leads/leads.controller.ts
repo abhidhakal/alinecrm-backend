@@ -13,31 +13,31 @@ export class LeadsController {
 
   @Post()
   create(@Body() createLeadDto: CreateLeadDto, @Request() req) {
-    const user = { id: req.user.userId, role: req.user.role } as User;
+    const user = { id: req.user.userId, role: req.user.role, institutionId: req.user.institutionId } as User;
     return this.leadsService.create(createLeadDto, user);
   }
 
   @Get()
   findAll(@Request() req) {
-    const user = { id: req.user.userId, role: req.user.role } as User;
+    const user = { id: req.user.userId, role: req.user.role, institutionId: req.user.institutionId } as User;
     return this.leadsService.findAll(user);
   }
 
   @Get(':id')
   findOne(@Param('id') id: string, @Request() req) {
-    const user = { id: req.user.userId, role: req.user.role } as User;
+    const user = { id: req.user.userId, role: req.user.role, institutionId: req.user.institutionId } as User;
     return this.leadsService.findOne(+id, user);
   }
 
   @Patch(':id')
   update(@Param('id') id: string, @Body() updateLeadDto: UpdateLeadDto, @Request() req) {
-    const user = { id: req.user.userId, role: req.user.role } as User;
+    const user = { id: req.user.userId, role: req.user.role, institutionId: req.user.institutionId } as User;
     return this.leadsService.update(+id, updateLeadDto, user);
   }
 
   @Delete(':id')
   remove(@Param('id') id: string, @Request() req) {
-    const user = { id: req.user.userId, role: req.user.role } as User;
+    const user = { id: req.user.userId, role: req.user.role, institutionId: req.user.institutionId } as User;
     return this.leadsService.remove(+id, user);
   }
 }

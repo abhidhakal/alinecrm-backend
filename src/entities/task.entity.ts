@@ -5,6 +5,7 @@ import { Contact } from './contact.entity';
 import { Campaign } from './campaign.entity';
 import { Mindfulness } from './mindfulness.entity';
 import { Revenue } from './revenue.entity';
+import { Institution } from './institution.entity';
 
 export enum TaskStatus {
   TODO = 'To-Do',
@@ -73,6 +74,13 @@ export class Task {
   @ManyToOne(() => Revenue, (revenue) => revenue.tasks, { nullable: true })
   @JoinColumn({ name: 'related_revenue_id' })
   relatedRevenue: Revenue;
+
+  @ManyToOne(() => Institution, { nullable: true })
+  @JoinColumn({ name: 'institution_id' })
+  institution: Institution;
+
+  @Column({ name: 'institution_id', nullable: true })
+  institutionId: number;
 
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;

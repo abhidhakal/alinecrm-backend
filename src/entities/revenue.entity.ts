@@ -2,6 +2,7 @@ import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, ManyToOne, Jo
 import { User } from './user.entity';
 import { Lead } from './lead.entity';
 import { Task } from './task.entity';
+import { Institution } from './institution.entity';
 
 @Entity('revenues')
 export class Revenue {
@@ -30,6 +31,13 @@ export class Revenue {
 
   @OneToMany(() => Task, (task) => task.relatedRevenue)
   tasks: Task[];
+
+  @ManyToOne(() => Institution, { nullable: true })
+  @JoinColumn({ name: 'institution_id' })
+  institution: Institution;
+
+  @Column({ name: 'institution_id', nullable: true })
+  institutionId: number;
 
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;

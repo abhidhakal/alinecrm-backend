@@ -28,6 +28,7 @@ export class LeadsService {
     const lead = this.leadsRepository.create({
       ...leadData,
       status: leadData.status || LeadStatus.NEW,
+      institutionId: user.institutionId, // Assign institution
     });
 
     if (assignedToIds && assignedToIds.length > 0) {
@@ -37,7 +38,7 @@ export class LeadsService {
     }
 
     if (contactId) {
-      const whereClause: any = { id: contactId };
+      const whereClause: any = { id: contactId, institutionId: user.institutionId }; // Verify contact belongs to institution
       if (user.role !== Role.Admin && user.role !== Role.SuperAdmin) {
         whereClause.assignedTo = { id: user.id };
       }
@@ -62,19 +63,23 @@ export class LeadsService {
   async findAll(user: User): Promise<Lead[]> {
     if (user.role === Role.Admin || user.role === Role.SuperAdmin) {
       return this.leadsRepository.find({
+        where: { institutionId: user.institutionId }, // Restrict to institution
         relations: ['contact', 'assignedTo'],
         order: { createdAt: 'DESC' },
       });
     }
     return this.leadsRepository.find({
-      where: { assignedTo: { id: user.id } },
+      where: {
+        assignedTo: { id: user.id },
+        institutionId: user.institutionId
+      },
       relations: ['contact', 'assignedTo'],
       order: { createdAt: 'DESC' },
     });
   }
 
   async findOne(id: number, user: User): Promise<Lead> {
-    const whereClause: any = { id };
+    const whereClause: any = { id, institutionId: user.institutionId };
     if (user.role !== Role.Admin && user.role !== Role.SuperAdmin) {
       whereClause.assignedTo = { id: user.id };
     }
@@ -92,7 +97,7 @@ export class LeadsService {
 
   async update(id: number, updateLeadDto: UpdateLeadDto, user: User): Promise<Lead> {
     const { assignedToIds, ...updateData } = updateLeadDto;
-    const lead = await this.findOne(id, user);
+    const lead = await this.findOne(id, user); // findOne checks access
     const previousStatus = lead.status;
 
     // Update fields
@@ -119,6 +124,7 @@ export class LeadsService {
           description: `Revenue from closed lead: ${lead.name}`,
           user: user,
           lead: lead,
+          institutionId: user.institutionId, // Assign institution to revenue
         });
         await this.revenueRepository.save(revenue);
       }
@@ -128,7 +134,7 @@ export class LeadsService {
   }
 
   async remove(id: number, user: User): Promise<void> {
-    const lead = await this.findOne(id, user);
+    const lead = await this.findOne(id, user); // findOne checks access
     await this.leadsRepository.remove(lead);
   }
 }

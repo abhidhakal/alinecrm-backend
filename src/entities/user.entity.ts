@@ -16,6 +16,7 @@ import { Campaign } from './campaign.entity';
 import { Mindfulness } from './mindfulness.entity';
 import { Contact } from './contact.entity';
 import { Revenue } from './revenue.entity';
+import { Institution } from './institution.entity';
 
 @Entity('users')
 export class User {
@@ -57,6 +58,13 @@ export class User {
 
   @OneToMany(() => Revenue, (revenue) => revenue.user)
   revenues: Revenue[];
+
+  @ManyToOne(() => Institution, { nullable: true })
+  @JoinColumn({ name: 'institution_id' })
+  institution: Institution;
+
+  @Column({ name: 'institution_id', nullable: true })
+  institutionId: number;
 
   @Column({ default: 'NPR' })
   currency: string;

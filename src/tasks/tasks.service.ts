@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, In } from 'typeorm';
+import { Repository, In, Brackets } from 'typeorm';
 import { Task } from '../entities/task.entity';
 import { User } from '../entities/user.entity';
 import { CreateTaskDto } from './dto/create-task.dto';
@@ -19,8 +19,11 @@ export class TasksService {
   async create(createTaskDto: CreateTaskDto, user: User): Promise<Task> {
     const { assignedToIds, assignedById, relatedLeadId, relatedContactId, relatedCampaignId, relatedMindfulnessId, relatedRevenueId, ...taskData } = createTaskDto;
 
-    const task = this.taskRepository.create(taskData);
-    
+    const task = this.taskRepository.create({
+      ...taskData,
+      institutionId: user.institutionId, // Assign institution
+    });
+
     // Set the creator
     task.assignedBy = user;
 
@@ -55,20 +58,22 @@ export class TasksService {
   async findAll(user: User): Promise<Task[]> {
     if (user.role === Role.Admin || user.role === Role.SuperAdmin) {
       return this.taskRepository.find({
+        where: { institutionId: user.institutionId }, // Restrict to institution
         relations: ['assignedTo', 'assignedBy', 'relatedLead', 'relatedContact', 'relatedCampaign', 'relatedMindfulness', 'relatedRevenue'],
         order: { createdAt: 'DESC' },
       });
     }
 
-    // For regular users, find tasks they created OR are assigned to
-    // We use a two-step process to ensure we get the full task with all assignees,
-    // not just the current user in the assignedTo array (which can happen with filtering on relations)
+    // For regular users, find tasks they created OR are assigned to, within their institution
     const qb = this.taskRepository.createQueryBuilder('task')
       .leftJoin('task.assignedTo', 'assignee')
       .leftJoin('task.assignedBy', 'creator')
       .select('task.id')
-      .where('creator.id = :userId', { userId: user.id })
-      .orWhere('assignee.id = :userId', { userId: user.id });
+      .where('task.institutionId = :institutionId', { institutionId: user.institutionId })
+      .andWhere(new Brackets(qb => {
+        qb.where('creator.id = :userId', { userId: user.id })
+          .orWhere('assignee.id = :userId', { userId: user.id });
+      }));
 
     const tasks = await qb.getMany();
     const taskIds = tasks.map(t => t.id);
@@ -86,7 +91,7 @@ export class TasksService {
 
   async findOne(id: number, user: User): Promise<Task> {
     const task = await this.taskRepository.findOne({
-      where: { id },
+      where: { id, institutionId: user.institutionId }, // Check institution
       relations: ['assignedTo', 'assignedBy', 'relatedLead', 'relatedContact', 'relatedCampaign', 'relatedMindfulness', 'relatedRevenue'],
     });
 
@@ -147,7 +152,7 @@ export class TasksService {
 
   async remove(id: number, user: User): Promise<void> {
     const task = await this.findOne(id, user);
-    
+
     if (user.role === Role.Admin || user.role === Role.SuperAdmin) {
       await this.taskRepository.remove(task);
       return;

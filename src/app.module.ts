@@ -25,6 +25,7 @@ import { EmailCampaignRecipient } from './entities/email-campaign-recipient.enti
 import { EmailEvent } from './entities/email-event.entity';
 import { UnsubscribedEmail } from './entities/unsubscribed-email.entity';
 import { EmailTemplate } from './entities/email-template.entity';
+import { Institution } from './entities/institution.entity';
 
 @Module({
   imports: [
@@ -35,6 +36,7 @@ import { EmailTemplate } from './entities/email-template.entity';
       type: 'postgres',
       url: process.env.DATABASE_URL,
       entities: [
+        Institution, // Multi-tenancy core entity
         Role, User,
         Contact, Lead, Revenue, Task, Campaign, CampaignRecipient, Mindfulness,
         // Email Campaign entities
