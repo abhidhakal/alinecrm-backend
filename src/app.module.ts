@@ -9,6 +9,7 @@ import { TasksModule } from './tasks/tasks.module';
 import { LeadsModule } from './leads/leads.module';
 import { UsersModule } from './users/users.module';
 import { UploadModule } from './upload/upload.module';
+import { DashboardModule } from './dashboard/dashboard.module';
 import { CampaignsModule } from './campaigns/campaigns.module';
 import { TemplatesModule } from './templates/templates.module';
 import { Role } from './entities/role.entity';
@@ -51,6 +52,7 @@ import { Institution } from './entities/institution.entity';
     LeadsModule,
     UsersModule,
     UploadModule,
+    DashboardModule,
     CampaignsModule,
     TemplatesModule,
   ],
