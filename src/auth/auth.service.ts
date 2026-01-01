@@ -1,4 +1,4 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { Injectable, UnauthorizedException, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import * as bcrypt from 'bcrypt';
@@ -6,18 +6,31 @@ import { JwtService } from '@nestjs/jwt';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
 import { User } from '../entities/user.entity';
-
 import { Institution } from '../entities/institution.entity';
+import * as nodemailer from 'nodemailer';
 
 @Injectable()
 export class AuthService {
+  private transporter: nodemailer.Transporter;
+
   constructor(
     @InjectRepository(User)
     private userRepository: Repository<User>,
     @InjectRepository(Institution)
     private institutionRepository: Repository<Institution>,
     private jwtService: JwtService,
-  ) { }
+  ) {
+    // Initialize email transporter (configure with your SMTP settings)
+    this.transporter = nodemailer.createTransport({
+      host: process.env.SMTP_HOST || 'smtp.ethereal.email',
+      port: Number(process.env.SMTP_PORT) || 587,
+      secure: false,
+      auth: {
+        user: process.env.SMTP_USER || 'your-smtp-user',
+        pass: process.env.SMTP_PASS || 'your-smtp-pass',
+      },
+    });
+  }
 
   async register(dto: RegisterDto) {
     const existingUser = await this.userRepository.findOne({
@@ -41,7 +54,7 @@ export class AuthService {
       institution: savedInstitution // Link to institution
     });
 
-    await this.userRepository.save(user); // cascading save logic might be cleaner but explicit is safer here
+    await this.userRepository.save(user);
 
     return {
       id: user.id,
@@ -55,14 +68,85 @@ export class AuthService {
   async login(dto: LoginDto) {
     const user = await this.userRepository.findOne({
       where: { email: dto.email },
-      relations: ['institution'] // Load institution to get ID if needed, though column institutionId exists
+      relations: ['institution']
     });
     if (!user) throw new UnauthorizedException('Invalid credentials');
 
     const isPasswordValid = await bcrypt.compare(dto.password, user.passwordHash);
     if (!isPasswordValid) throw new UnauthorizedException('Invalid credentials');
 
-    // Include institutionId in payload
+    return this.generateAuthResponse(user);
+  }
+
+  async googleLogin(req: any) {
+    if (!req.user) throw new BadRequestException('No user from google');
+
+    let user = await this.userRepository.findOne({
+      where: { email: req.user.email },
+      relations: ['institution']
+    });
+
+    if (!user) {
+      // 1. Create a default institution for the new user
+      const institution = this.institutionRepository.create({
+        name: `${req.user.firstName}'s Company`
+      });
+      const savedInstitution = await this.institutionRepository.save(institution);
+
+      // 2. Create the user as an admin of that institution
+      user = this.userRepository.create({
+        email: req.user.email,
+        name: `${req.user.firstName} ${req.user.lastName}`,
+        role: 'admin', // New social users are admins of their own institution
+        profilePicture: req.user.picture,
+        institution: savedInstitution
+      });
+      await this.userRepository.save(user);
+    }
+
+    return this.generateAuthResponse(user);
+  }
+
+  async sendMagicLink(email: string) {
+    const user = await this.userRepository.findOne({ where: { email } });
+    if (!user) throw new UnauthorizedException('User not found');
+
+    const token = this.jwtService.sign({ email }, { expiresIn: '15m' });
+    const url = `${process.env.BACKEND_URL || 'http://localhost:3000'}/auth/magic-link/verify?token=${token}`;
+
+    // Send email
+    try {
+      await this.transporter.sendMail({
+        from: '"AlineCRM" <noreply@alinecrm.com>',
+        to: email,
+        subject: 'Your Magic Login Link',
+        html: `<p>Click <a href="${url}">here</a> to log in to AlineCRM. This link expires in 15 minutes.</p>`,
+      });
+      return { message: 'Magic link sent' };
+    } catch (error) {
+      console.error('Failed to send magic link email:', error);
+      // For development, log the URL
+      console.log('Magic Link URL:', url);
+      return { message: 'Magic link generated (check console in dev)', url };
+    }
+  }
+
+  async verifyMagicLink(token: string) {
+    try {
+      const payload = this.jwtService.verify(token);
+      const user = await this.userRepository.findOne({
+        where: { email: payload.email },
+        relations: ['institution']
+      });
+      if (!user) throw new UnauthorizedException('User not found');
+
+      return this.generateAuthResponse(user);
+    } catch (e) {
+      throw new UnauthorizedException('Invalid or expired magic link');
+    }
+  }
+
+  private generateAuthResponse(user: User) {
     const payload = {
       sub: user.id,
       email: user.email,
@@ -70,7 +154,11 @@ export class AuthService {
       institutionId: user.institutionId
     };
 
-    const token = this.jwtService.sign(payload, { secret: process.env.JWT_SECRET || 'your-secret-key', expiresIn: '7d' });
+    const token = this.jwtService.sign(payload, {
+      secret: process.env.JWT_SECRET || 'your-secret-key',
+      expiresIn: '7d'
+    });
+
     return {
       access_token: token,
       user: {
