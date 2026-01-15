@@ -1,9 +1,9 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, Between, LessThanOrEqual, MoreThanOrEqual } from 'typeorm';
+import { Repository, Between, LessThanOrEqual, MoreThanOrEqual, Not } from 'typeorm';
 import { Lead, LeadStatus } from '../entities/lead.entity';
 import { Revenue } from '../entities/revenue.entity';
-import { Task } from '../entities/task.entity';
+import { Task, TaskStatus } from '../entities/task.entity';
 import { Contact } from '../entities/contact.entity';
 import { Campaign } from '../entities/campaign.entity';
 import { User } from '../entities/user.entity';
@@ -25,6 +25,9 @@ export class DashboardService {
 
   async getStats(user: User) {
     const today = new Date();
+    // Format today as YYYY-MM-DD for strict date matching on 'date' column
+    const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+
     const thirtyDaysAgo = new Date(today);
     thirtyDaysAgo.setDate(today.getDate() - 30);
     const sixtyDaysAgo = new Date(today);
@@ -123,19 +126,23 @@ export class DashboardService {
     };
 
     const tasksDue = await this.taskRepository.find({
-      where: baseTaskWhere,
+      where: {
+        ...baseTaskWhere,
+        status: Not(TaskStatus.COMPLETE),
+      },
       order: { dueDate: 'ASC' },
       take: 5
     });
 
-    // For calendar, we might want a wider range, but for now getting next 20 tasks
+    // For calendar: only show today's tasks as per user request
     const calendarEvents = await this.taskRepository.find({
       where: {
         ...baseTaskWhere,
-        dueDate: MoreThanOrEqual(today)
-      },
+        dueDate: todayStr,
+        status: Not(TaskStatus.COMPLETE),
+      } as any,
       order: { dueDate: 'ASC' },
-      take: 10
+      take: 20
     });
 
     return {

@@ -6,6 +6,7 @@ import { User } from '../entities/user.entity';
 import { CreateTaskDto } from './dto/create-task.dto';
 import { UpdateTaskDto } from './dto/update-task.dto';
 import { Role } from '../auth/role.enum';
+import { GoogleCalendarService } from '../google-calendar/google-calendar.service';
 
 @Injectable()
 export class TasksService {
@@ -14,6 +15,7 @@ export class TasksService {
     private readonly taskRepository: Repository<Task>,
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
+    private readonly googleCalendarService: GoogleCalendarService,
   ) { }
 
   async create(createTaskDto: CreateTaskDto, user: User): Promise<Task> {
@@ -21,7 +23,7 @@ export class TasksService {
 
     const task = this.taskRepository.create({
       ...taskData,
-      institutionId: user.institutionId, // Assign institution
+      institutionId: user.institutionId,
     });
 
     // Set the creator
@@ -52,19 +54,23 @@ export class TasksService {
       task.relatedRevenue = { id: relatedRevenueId } as any;
     }
 
-    return this.taskRepository.save(task);
+    const savedTask = await this.taskRepository.save(task);
+
+    // Sync to Google Calendar for the creator (if connected)
+    this.syncTaskToGoogleCalendar(savedTask, user.id, 'create');
+
+    return savedTask;
   }
 
   async findAll(user: User): Promise<Task[]> {
     if (user.role === Role.Admin || user.role === Role.SuperAdmin) {
       return this.taskRepository.find({
-        where: { institutionId: user.institutionId }, // Restrict to institution
+        where: { institutionId: user.institutionId },
         relations: ['assignedTo', 'assignedBy', 'relatedLead', 'relatedContact', 'relatedCampaign', 'relatedMindfulness', 'relatedRevenue'],
         order: { createdAt: 'DESC' },
       });
     }
 
-    // For regular users, find tasks they created OR are assigned to, within their institution
     const qb = this.taskRepository.createQueryBuilder('task')
       .leftJoin('task.assignedTo', 'assignee')
       .leftJoin('task.assignedBy', 'creator')
@@ -91,7 +97,7 @@ export class TasksService {
 
   async findOne(id: number, user: User): Promise<Task> {
     const task = await this.taskRepository.findOne({
-      where: { id, institutionId: user.institutionId }, // Check institution
+      where: { id, institutionId: user.institutionId },
       relations: ['assignedTo', 'assignedBy', 'relatedLead', 'relatedContact', 'relatedCampaign', 'relatedMindfulness', 'relatedRevenue'],
     });
 
@@ -103,7 +109,6 @@ export class TasksService {
       return task;
     }
 
-    // Check if user has access (creator or assignee)
     const isCreator = task.assignedBy?.id === user.id;
     const isAssignee = task.assignedTo?.some(assignee => assignee.id === user.id);
 
@@ -147,24 +152,53 @@ export class TasksService {
       task.relatedRevenue = relatedRevenueId ? { id: relatedRevenueId } as any : null;
     }
 
-    return this.taskRepository.save(task);
+    const savedTask = await this.taskRepository.save(task);
+
+    // Sync to Google Calendar
+    this.syncTaskToGoogleCalendar(savedTask, user.id, 'update');
+
+    return savedTask;
   }
 
   async remove(id: number, user: User): Promise<void> {
     const task = await this.findOne(id, user);
+
+    // Delete from Google Calendar first (before removing from DB)
+    await this.syncTaskToGoogleCalendar(task, user.id, 'delete');
 
     if (user.role === Role.Admin || user.role === Role.SuperAdmin) {
       await this.taskRepository.remove(task);
       return;
     }
 
-    // Only allow creator to delete? Or assignees too? 
-    // For now, let's allow both if they have access, or maybe restrict to creator.
-    // Let's restrict delete to creator for better security.
     if (task.assignedBy?.id !== user.id) {
       throw new ForbiddenException('Only the creator can delete this task');
     }
 
     await this.taskRepository.remove(task);
+  }
+
+  /**
+   * Sync task to Google Calendar (fire-and-forget, non-blocking)
+   */
+  private syncTaskToGoogleCalendar(task: Task, userId: number, action: 'create' | 'update' | 'delete') {
+    // Run asynchronously without awaiting to avoid slowing down the API response
+    (async () => {
+      try {
+        switch (action) {
+          case 'create':
+            await this.googleCalendarService.createEvent(task, userId);
+            break;
+          case 'update':
+            await this.googleCalendarService.updateEvent(task, userId);
+            break;
+          case 'delete':
+            await this.googleCalendarService.deleteEvent(task, userId);
+            break;
+        }
+      } catch (error) {
+        console.error(`Failed to sync task ${task.id} to Google Calendar:`, error);
+      }
+    })();
   }
 }

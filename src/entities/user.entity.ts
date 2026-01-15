@@ -69,6 +69,12 @@ export class User {
   @Column({ default: 'NPR' })
   currency: string;
 
+  @Column({ name: 'google_refresh_token', nullable: true, select: false })
+  googleRefreshToken: string;
+
+  @Column({ name: 'is_google_calendar_connected', default: false })
+  isGoogleCalendarConnected: boolean;
+
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;
 

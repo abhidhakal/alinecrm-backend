@@ -82,6 +82,9 @@ export class Task {
   @Column({ name: 'institution_id', nullable: true })
   institutionId: number;
 
+  @Column({ name: 'google_event_id', nullable: true })
+  googleEventId: string;
+
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;
 

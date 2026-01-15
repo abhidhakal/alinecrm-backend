@@ -16,6 +16,9 @@ export class Institution {
   @Column()
   name: string;
 
+  @Column({ type: 'simple-json', default: '[0, 6]' })
+  weekendDays: number[]; // Array of day indices: 0=Sunday, 1=Monday, ..., 6=Saturday
+
   // @OneToMany(() => User, (user) => user.institution)
   // users: User[];
 

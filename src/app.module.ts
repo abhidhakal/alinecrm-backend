@@ -30,6 +30,8 @@ import { Institution } from './entities/institution.entity';
 import { SocialChannel } from './entities/social-channel.entity';
 import { SocialPost } from './entities/social-post.entity';
 import { SocialModule } from './social/social.module';
+import { InstitutionsModule } from './institutions/institutions.module';
+import { GoogleCalendarModule } from './google-calendar/google-calendar.module';
 
 @Module({
   imports: [
@@ -60,6 +62,8 @@ import { SocialModule } from './social/social.module';
     CampaignsModule,
     TemplatesModule,
     SocialModule,
+    InstitutionsModule,
+    GoogleCalendarModule,
   ],
   controllers: [AppController],
   providers: [AppService],
