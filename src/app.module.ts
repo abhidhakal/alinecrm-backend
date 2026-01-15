@@ -27,6 +27,9 @@ import { EmailEvent } from './entities/email-event.entity';
 import { UnsubscribedEmail } from './entities/unsubscribed-email.entity';
 import { EmailTemplate } from './entities/email-template.entity';
 import { Institution } from './entities/institution.entity';
+import { SocialChannel } from './entities/social-channel.entity';
+import { SocialPost } from './entities/social-post.entity';
+import { SocialModule } from './social/social.module';
 
 @Module({
   imports: [
@@ -40,6 +43,7 @@ import { Institution } from './entities/institution.entity';
         Institution, // Multi-tenancy core entity
         Role, User,
         Contact, Lead, Revenue, Task, Campaign, CampaignRecipient, Mindfulness,
+        SocialChannel, SocialPost,
         // Email Campaign entities
         EmailCampaign, EmailCampaignRecipient, EmailEvent, UnsubscribedEmail, EmailTemplate,
       ],
@@ -55,6 +59,7 @@ import { Institution } from './entities/institution.entity';
     DashboardModule,
     CampaignsModule,
     TemplatesModule,
+    SocialModule,
   ],
   controllers: [AppController],
   providers: [AppService],
