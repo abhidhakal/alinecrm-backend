@@ -20,14 +20,20 @@ export class AuthService {
     private institutionRepository: Repository<Institution>,
     private jwtService: JwtService,
   ) {
-    // Initialize email transporter (configure with your SMTP settings)
+    // Initialize email transporter with Brevo SMTP
+    console.log('Initializing SMTP with:', {
+      host: process.env.SMTP_HOST || 'smtp-relay.brevo.com',
+      user: process.env.SMTP_USER,
+      hasSmtpKey: !!process.env.BREVO_SMTP_KEY,
+    });
+
     this.transporter = nodemailer.createTransport({
-      host: process.env.SMTP_HOST || 'smtp.ethereal.email',
+      host: process.env.SMTP_HOST || 'smtp-relay.brevo.com',
       port: Number(process.env.SMTP_PORT) || 587,
       secure: false,
       auth: {
-        user: process.env.SMTP_USER || 'your-smtp-user',
-        pass: process.env.SMTP_PASS || 'your-smtp-pass',
+        user: process.env.SMTP_USER,
+        pass: process.env.BREVO_SMTP_KEY,
       },
     });
   }
@@ -112,22 +118,26 @@ export class AuthService {
     if (!user) throw new UnauthorizedException('User not found');
 
     const token = this.jwtService.sign({ email }, { expiresIn: '15m' });
-    const url = `${process.env.BACKEND_URL || 'http://localhost:3000'}/auth/magic-link/verify?token=${token}`;
+
+    // Use FRONT_URL from env or default to localhost
+    const backendUrl = process.env.BACKEND_URL || 'http://localhost:3000';
+    const url = `${backendUrl}/auth/magic-link/verify?token=${token}`;
 
     // Send email
     try {
+      const sender = process.env.SMTP_USER;
+      if (!sender) throw new Error('SMTP_USER not configured in environment');
+
       await this.transporter.sendMail({
-        from: '"AlineCRM" <noreply@alinecrm.com>',
+        from: `"AlineCRM" <${sender}>`,
         to: email,
         subject: 'Your Magic Login Link',
         html: `<p>Click <a href="${url}">here</a> to log in to AlineCRM. This link expires in 15 minutes.</p>`,
       });
       return { message: 'Magic link sent' };
     } catch (error) {
-      console.error('Failed to send magic link email:', error);
-      // For development, log the URL
-      console.log('Magic Link URL:', url);
-      return { message: 'Magic link generated (check console in dev)', url };
+      console.error('Magic Link Email Error:', error);
+      throw new BadRequestException(`Failed to send magic link email. Please check SMTP configuration: ${error.message}`);
     }
   }
 
@@ -150,6 +160,7 @@ export class AuthService {
     const payload = {
       sub: user.id,
       email: user.email,
+      name: user.name,
       role: user.role,
       institutionId: user.institutionId
     };

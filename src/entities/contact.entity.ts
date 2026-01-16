@@ -51,6 +51,13 @@ export class Contact {
   @Column({ name: 'institution_id', nullable: true })
   institutionId: number;
 
+  @ManyToOne(() => User, { nullable: true })
+  @JoinColumn({ name: 'created_by' })
+  createdBy: User;
+
+  @Column({ name: 'created_by', nullable: true })
+  createdById: number;
+
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;
 

@@ -6,27 +6,27 @@ export class EmailTemplate {
   @PrimaryGeneratedColumn()
   id: number;
 
-  @Column()
+  @Column({ type: 'varchar' })
   name: string;
 
-  @Column({ nullable: true })
-  subject: string;
+  @Column({ type: 'varchar', nullable: true })
+  subject: string | null;
 
-  @Column({ name: 'suggested_title', nullable: true })
-  suggestedTitle: string;
+  @Column({ name: 'suggested_title', type: 'varchar', nullable: true })
+  suggestedTitle: string | null;
 
   @Column({ type: 'text' })
   htmlContent: string;
 
   @Column({ type: 'text', nullable: true })
-  description: string;
+  description: string | null;
 
   @ManyToOne(() => Institution, { nullable: true })
   @JoinColumn({ name: 'institution_id' })
-  institution: Institution;
+  institution: Institution | null;
 
   @Column({ name: 'institution_id', nullable: true })
-  institutionId: number;
+  institutionId: number | null;
 
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;

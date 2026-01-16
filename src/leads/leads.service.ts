@@ -8,6 +8,7 @@ import { CreateLeadDto } from './dto/create-lead.dto';
 import { UpdateLeadDto } from './dto/update-lead.dto';
 import { User } from '../entities/user.entity';
 import { Role } from '../auth/role.enum';
+import { NotificationService } from '../notification/notification.service';
 
 @Injectable()
 export class LeadsService {
@@ -20,15 +21,20 @@ export class LeadsService {
     private revenueRepository: Repository<Revenue>,
     @InjectRepository(User)
     private usersRepository: Repository<User>,
+    private notificationService: NotificationService,
   ) { }
 
-  async create(createLeadDto: CreateLeadDto, user: User): Promise<Lead> {
+  async create(createLeadDto: CreateLeadDto, user: any): Promise<Lead> {
+    // JWT payload has 'userId' not 'id' - extract it correctly
+    const userId = user.userId || user.id;
+
     const { contactId, assignedToIds, ...leadData } = createLeadDto;
 
     const lead = this.leadsRepository.create({
       ...leadData,
       status: leadData.status || LeadStatus.NEW,
       institutionId: user.institutionId, // Assign institution
+      createdById: userId,
     });
 
     if (assignedToIds && assignedToIds.length > 0) {
@@ -40,7 +46,7 @@ export class LeadsService {
     if (contactId) {
       const whereClause: any = { id: contactId, institutionId: user.institutionId }; // Verify contact belongs to institution
       if (user.role !== Role.Admin && user.role !== Role.SuperAdmin) {
-        whereClause.assignedTo = { id: user.id };
+        whereClause.assignedTo = { id: userId };
       }
       const contact = await this.contactsRepository.findOne({
         where: whereClause,
@@ -57,10 +63,26 @@ export class LeadsService {
       if (!lead.companyName) lead.companyName = contact.companyName;
     }
 
-    return this.leadsRepository.save(lead);
+    const savedLead = await this.leadsRepository.save(lead);
+
+    // Notify Admins if created by a non-admin
+    if (user.role !== Role.Admin && user.role !== Role.SuperAdmin) {
+      this.notificationService.notifyAdmins({
+        title: 'New Lead Created',
+        message: `${user.name} created a new lead: ${savedLead.name}`,
+        link: `/leads/${savedLead.id}`,
+        type: 'lead',
+        action: 'creation',
+      }).catch(err => console.error('Failed to send notification:', err));
+    }
+
+    return savedLead;
   }
 
-  async findAll(user: User): Promise<Lead[]> {
+  async findAll(user: any): Promise<Lead[]> {
+    // JWT payload has 'userId' not 'id' - extract it correctly
+    const userId = user.userId || user.id;
+
     if (user.role === Role.Admin || user.role === Role.SuperAdmin) {
       return this.leadsRepository.find({
         where: { institutionId: user.institutionId }, // Restrict to institution
@@ -70,7 +92,7 @@ export class LeadsService {
     }
     return this.leadsRepository.find({
       where: {
-        assignedTo: { id: user.id },
+        assignedTo: { id: userId },
         institutionId: user.institutionId
       },
       relations: ['contact', 'assignedTo'],
@@ -78,10 +100,13 @@ export class LeadsService {
     });
   }
 
-  async findOne(id: number, user: User): Promise<Lead> {
+  async findOne(id: number, user: any): Promise<Lead> {
+    // JWT payload has 'userId' not 'id' - extract it correctly
+    const userId = user.userId || user.id;
+
     const whereClause: any = { id, institutionId: user.institutionId };
     if (user.role !== Role.Admin && user.role !== Role.SuperAdmin) {
-      whereClause.assignedTo = { id: user.id };
+      whereClause.assignedTo = { id: userId };
     }
     const lead = await this.leadsRepository.findOne({
       where: whereClause,
@@ -95,8 +120,9 @@ export class LeadsService {
     return lead;
   }
 
-  async update(id: number, updateLeadDto: UpdateLeadDto, user: User): Promise<Lead> {
+  async update(id: number, updateLeadDto: UpdateLeadDto, user: any): Promise<Lead> {
     const { assignedToIds, ...updateData } = updateLeadDto;
+    const userId = user.userId || user.id;
     const lead = await this.findOne(id, user); // findOne checks access
     const previousStatus = lead.status;
 
@@ -133,7 +159,8 @@ export class LeadsService {
     return this.leadsRepository.save(lead);
   }
 
-  async remove(id: number, user: User): Promise<void> {
+  async remove(id: number, user: any): Promise<void> {
+    const userId = user.userId || user.id;
     const lead = await this.findOne(id, user); // findOne checks access
     await this.leadsRepository.remove(lead);
   }

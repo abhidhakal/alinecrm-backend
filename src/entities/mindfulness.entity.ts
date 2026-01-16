@@ -1,4 +1,4 @@
-import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, ManyToOne, JoinColumn, OneToMany } from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, ManyToOne, JoinColumn, OneToMany, UpdateDateColumn } from 'typeorm';
 import { User } from './user.entity';
 import { Task } from './task.entity';
 import { Institution } from './institution.entity';
@@ -15,6 +15,12 @@ export class Mindfulness {
   @Column()
   type: string;
 
+  @Column({ type: 'text', nullable: true })
+  content: string;
+
+  @Column({ name: 'is_pinned', default: false })
+  isPinned: boolean;
+
   @OneToMany(() => Task, (task) => task.relatedMindfulness)
   tasks: Task[];
 
@@ -27,4 +33,7 @@ export class Mindfulness {
 
   @CreateDateColumn({ name: 'timestamp' })
   timestamp: Date;
+
+  @UpdateDateColumn({ name: 'updated_at' })
+  updatedAt: Date;
 }

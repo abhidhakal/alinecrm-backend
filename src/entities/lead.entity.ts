@@ -94,6 +94,13 @@ export class Lead {
   @OneToMany(() => Task, (task) => task.relatedLead)
   tasks: Task[];
 
+  @ManyToOne(() => User, { nullable: true })
+  @JoinColumn({ name: 'created_by' })
+  createdBy: User;
+
+  @Column({ name: 'created_by', nullable: true })
+  createdById: number;
+
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;
 

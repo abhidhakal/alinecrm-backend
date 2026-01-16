@@ -32,6 +32,10 @@ import { SocialPost } from './entities/social-post.entity';
 import { SocialModule } from './social/social.module';
 import { InstitutionsModule } from './institutions/institutions.module';
 import { GoogleCalendarModule } from './google-calendar/google-calendar.module';
+import { Notification } from './entities/notification.entity';
+import { NotificationModule } from './notification/notification.module';
+import { SearchModule } from './search/search.module';
+import { MindfulnessModule } from './mindfulness/mindfulness.module';
 
 @Module({
   imports: [
@@ -48,6 +52,7 @@ import { GoogleCalendarModule } from './google-calendar/google-calendar.module';
         SocialChannel, SocialPost,
         // Email Campaign entities
         EmailCampaign, EmailCampaignRecipient, EmailEvent, UnsubscribedEmail, EmailTemplate,
+        Notification,
       ],
       synchronize: true, // Auto-create tables (disable in production)
       logging: false,
@@ -64,6 +69,10 @@ import { GoogleCalendarModule } from './google-calendar/google-calendar.module';
     SocialModule,
     InstitutionsModule,
     GoogleCalendarModule,
+    NotificationModule,
+    NotificationModule,
+    SearchModule,
+    MindfulnessModule,
   ],
   controllers: [AppController],
   providers: [AppService],

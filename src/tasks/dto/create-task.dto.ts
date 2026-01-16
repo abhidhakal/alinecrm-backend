@@ -58,4 +58,12 @@ export class CreateTaskDto {
   @IsNumber()
   @IsOptional()
   relatedRevenueId?: number;
+
+  @IsOptional()
+  @IsArray()
+  attachments?: { url: string; name: string }[];
+
+  @IsOptional()
+  @IsArray()
+  links?: { url: string; title: string }[];
 }

@@ -82,6 +82,12 @@ export class Task {
   @Column({ name: 'institution_id', nullable: true })
   institutionId: number;
 
+  @Column('simple-json', { nullable: true })
+  attachments: { url: string; name: string }[];
+
+  @Column('simple-json', { nullable: true })
+  links: { url: string; title: string }[];
+
   @Column({ name: 'google_event_id', nullable: true })
   googleEventId: string;
 

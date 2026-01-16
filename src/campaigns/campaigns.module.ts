@@ -11,6 +11,7 @@ import { EmailEvent } from '../entities/email-event.entity';
 import { UnsubscribedEmail } from '../entities/unsubscribed-email.entity';
 import { Contact } from '../entities/contact.entity';
 import { Lead } from '../entities/lead.entity';
+import { NotificationModule } from '../notification/notification.module';
 
 @Module({
   imports: [
@@ -23,6 +24,7 @@ import { Lead } from '../entities/lead.entity';
       Contact,
       Lead,
     ]),
+    NotificationModule,
   ],
   controllers: [CampaignsController, WebhooksController, UnsubscribeController],
   providers: [CampaignsService, BrevoProvider],

@@ -13,7 +13,7 @@ import { UploadService } from './upload.service';
 @Controller('upload')
 @UseGuards(JwtAuthGuard)
 export class UploadController {
-  constructor(private readonly uploadService: UploadService) {}
+  constructor(private readonly uploadService: UploadService) { }
 
   @Post('profile-picture')
   @UseInterceptors(FileInterceptor('file'))
@@ -27,4 +27,17 @@ export class UploadController {
     const url = await this.uploadService.uploadProfilePicture(file);
     return { url };
   }
+
+  @Post('task-attachment')
+  @UseInterceptors(FileInterceptor('file'))
+  async uploadTaskAttachment(
+    @UploadedFile() file: Express.Multer.File,
+  ): Promise<{ url: string; name: string }> {
+    if (!file) {
+      throw new BadRequestException('No file uploaded');
+    }
+
+    return this.uploadService.uploadTaskAttachment(file);
+  }
 }
+

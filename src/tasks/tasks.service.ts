@@ -7,6 +7,7 @@ import { CreateTaskDto } from './dto/create-task.dto';
 import { UpdateTaskDto } from './dto/update-task.dto';
 import { Role } from '../auth/role.enum';
 import { GoogleCalendarService } from '../google-calendar/google-calendar.service';
+import { NotificationService } from '../notification/notification.service';
 
 @Injectable()
 export class TasksService {
@@ -16,9 +17,13 @@ export class TasksService {
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
     private readonly googleCalendarService: GoogleCalendarService,
+    private readonly notificationService: NotificationService,
   ) { }
 
-  async create(createTaskDto: CreateTaskDto, user: User): Promise<Task> {
+  async create(createTaskDto: CreateTaskDto, user: any): Promise<Task> {
+    // JWT payload has 'userId' not 'id' - extract it correctly
+    const userId = user.userId || user.id;
+
     const { assignedToIds, assignedById, relatedLeadId, relatedContactId, relatedCampaignId, relatedMindfulnessId, relatedRevenueId, ...taskData } = createTaskDto;
 
     const task = this.taskRepository.create({
@@ -56,13 +61,43 @@ export class TasksService {
 
     const savedTask = await this.taskRepository.save(task);
 
+    // Notify Admins if created by a non-admin
+    if (user.role !== Role.Admin && user.role !== Role.SuperAdmin) {
+      this.notificationService.notifyAdmins({
+        title: 'New Task Created',
+        message: `${user.name} created a new task: ${savedTask.title}`,
+        link: `/tasks/${savedTask.id}`,
+        type: 'task',
+        action: 'creation',
+      }).catch(err => console.error('Failed to send notification:', err));
+    }
+
+    // Notify Assignees (excluding the creator)
+    if (savedTask.assignedTo && savedTask.assignedTo.length > 0) {
+      savedTask.assignedTo.forEach(assignee => {
+        const assigneeId = assignee.id;
+        if (assigneeId !== userId) {
+          this.notificationService.notifyUser(assigneeId, {
+            title: 'New Task Assigned',
+            message: `${user.name} assigned a new task to you: ${savedTask.title}`,
+            link: `/tasks/${savedTask.id}`,
+            type: 'task',
+            action: 'assignment',
+          }).catch(err => console.error('Failed to send notification:', err));
+        }
+      });
+    }
+
     // Sync to Google Calendar for the creator (if connected)
-    this.syncTaskToGoogleCalendar(savedTask, user.id, 'create');
+    this.syncTaskToGoogleCalendar(savedTask, userId, 'create');
 
     return savedTask;
   }
 
-  async findAll(user: User): Promise<Task[]> {
+  async findAll(user: any): Promise<Task[]> {
+    // JWT payload has 'userId' not 'id' - extract it correctly
+    const userId = user.userId || user.id;
+
     if (user.role === Role.Admin || user.role === Role.SuperAdmin) {
       return this.taskRepository.find({
         where: { institutionId: user.institutionId },
@@ -77,8 +112,8 @@ export class TasksService {
       .select('task.id')
       .where('task.institutionId = :institutionId', { institutionId: user.institutionId })
       .andWhere(new Brackets(qb => {
-        qb.where('creator.id = :userId', { userId: user.id })
-          .orWhere('assignee.id = :userId', { userId: user.id });
+        qb.where('creator.id = :userId', { userId })
+          .orWhere('assignee.id = :userId', { userId });
       }));
 
     const tasks = await qb.getMany();
@@ -95,7 +130,10 @@ export class TasksService {
     });
   }
 
-  async findOne(id: number, user: User): Promise<Task> {
+  async findOne(id: number, user: any): Promise<Task> {
+    // JWT payload has 'userId' not 'id' - extract it correctly
+    const userId = user.userId || user.id;
+
     const task = await this.taskRepository.findOne({
       where: { id, institutionId: user.institutionId },
       relations: ['assignedTo', 'assignedBy', 'relatedLead', 'relatedContact', 'relatedCampaign', 'relatedMindfulness', 'relatedRevenue'],
@@ -109,8 +147,8 @@ export class TasksService {
       return task;
     }
 
-    const isCreator = task.assignedBy?.id === user.id;
-    const isAssignee = task.assignedTo?.some(assignee => assignee.id === user.id);
+    const isCreator = task.assignedBy?.id === userId;
+    const isAssignee = task.assignedTo?.some(assignee => assignee.id === userId);
 
     if (!isCreator && !isAssignee) {
       throw new ForbiddenException('You do not have access to this task');
@@ -119,7 +157,10 @@ export class TasksService {
     return task;
   }
 
-  async update(id: number, updateTaskDto: UpdateTaskDto, user: User): Promise<Task> {
+  async update(id: number, updateTaskDto: UpdateTaskDto, user: any): Promise<Task> {
+    // JWT payload has 'userId' not 'id' - extract it correctly
+    const userId = user.userId || user.id;
+
     const { assignedToIds, assignedById, relatedLeadId, relatedContactId, relatedCampaignId, relatedMindfulnessId, relatedRevenueId, ...taskData } = updateTaskDto;
 
     const task = await this.findOne(id, user);
@@ -154,24 +195,43 @@ export class TasksService {
 
     const savedTask = await this.taskRepository.save(task);
 
+    // Notify newly assigned users or all assignees about update
+    if (assignedToIds !== undefined && savedTask.assignedTo) {
+      savedTask.assignedTo.forEach(assignee => {
+        const assigneeId = assignee.id;
+        if (assigneeId !== userId) {
+          this.notificationService.notifyUser(assigneeId, {
+            title: 'Task Updated/Assigned',
+            message: `${user.name} updated or assigned a task to you: ${savedTask.title}`,
+            link: `/tasks/${savedTask.id}`,
+            type: 'task',
+            action: 'assignment',
+          }).catch(err => console.error('Failed to send notification:', err));
+        }
+      });
+    }
+
     // Sync to Google Calendar
-    this.syncTaskToGoogleCalendar(savedTask, user.id, 'update');
+    this.syncTaskToGoogleCalendar(savedTask, userId, 'update');
 
     return savedTask;
   }
 
-  async remove(id: number, user: User): Promise<void> {
+  async remove(id: number, user: any): Promise<void> {
+    // JWT payload has 'userId' not 'id' - extract it correctly
+    const userId = user.userId || user.id;
+
     const task = await this.findOne(id, user);
 
     // Delete from Google Calendar first (before removing from DB)
-    await this.syncTaskToGoogleCalendar(task, user.id, 'delete');
+    await this.syncTaskToGoogleCalendar(task, userId, 'delete');
 
     if (user.role === Role.Admin || user.role === Role.SuperAdmin) {
       await this.taskRepository.remove(task);
       return;
     }
 
-    if (task.assignedBy?.id !== user.id) {
+    if (task.assignedBy?.id !== userId) {
       throw new ForbiddenException('Only the creator can delete this task');
     }
 

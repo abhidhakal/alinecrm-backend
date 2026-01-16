@@ -8,6 +8,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, In, MoreThanOrEqual, LessThanOrEqual, Not, IsNull } from 'typeorm';
 import { ConfigService } from '@nestjs/config';
 import { Role } from '../auth/role.enum';
+import { NotificationService } from '../notification/notification.service';
 import {
   EmailCampaign,
   CampaignStatus,
@@ -60,6 +61,7 @@ export class CampaignsService {
 
     private brevoProvider: BrevoProvider,
     private configService: ConfigService,
+    private notificationService: NotificationService,
   ) {
     this.appUrl = this.configService.get<string>('APP_URL') || 'http://localhost:3000';
   }
@@ -68,13 +70,16 @@ export class CampaignsService {
   // CAMPAIGN CRUD OPERATIONS
   // ============================================
 
-  async create(createCampaignDto: CreateCampaignDto, user: User): Promise<EmailCampaign> {
+  async create(createCampaignDto: CreateCampaignDto, user: any): Promise<EmailCampaign> {
+    // JWT payload has 'userId' not 'id' - extract it correctly
+    const userId = user.userId || user.id;
+
     const campaign = this.campaignRepository.create({
       ...createCampaignDto,
       scheduledAt: createCampaignDto.scheduledAt
         ? new Date(createCampaignDto.scheduledAt)
         : null,
-      createdById: user.id,
+      createdById: userId,
       status: CampaignStatus.DRAFT,
       institutionId: user.institutionId, // Assign to institution
     });
@@ -89,10 +94,26 @@ export class CampaignsService {
     savedCampaign.totalRecipients = estimatedCount;
     await this.campaignRepository.save(savedCampaign);
 
-    return savedCampaign;
+    const finalCampaign = await this.campaignRepository.save(savedCampaign);
+
+    // Notify Admins if created by a non-admin
+    if (user.role !== Role.Admin && user.role !== Role.SuperAdmin) {
+      this.notificationService.notifyAdmins({
+        title: 'New Campaign Created',
+        message: `${user.name} created a new campaign: ${finalCampaign.name}`,
+        link: `/campaigns/${finalCampaign.id}`,
+        type: 'campaign',
+        action: 'creation',
+      }).catch(err => console.error('Failed to send notification:', err));
+    }
+
+    return finalCampaign;
   }
 
-  async findAll(user: User): Promise<EmailCampaign[]> {
+  async findAll(user: any): Promise<EmailCampaign[]> {
+    // JWT payload has 'userId' not 'id' - extract it correctly
+    const userId = user.userId || user.id;
+
     if (user.role === Role.Admin || user.role === Role.SuperAdmin) {
       return this.campaignRepository.find({
         where: { institutionId: user.institutionId },
@@ -101,18 +122,21 @@ export class CampaignsService {
       });
     }
     return this.campaignRepository.find({
-      where: { createdById: user.id, institutionId: user.institutionId },
+      where: { createdById: userId, institutionId: user.institutionId },
       order: { createdAt: 'DESC' },
       relations: ['createdBy'],
     });
   }
 
-  async findOne(id: number, user?: User): Promise<EmailCampaign> {
+  async findOne(id: number, user?: any): Promise<EmailCampaign> {
+    // JWT payload has 'userId' not 'id' - extract it correctly
+    const userId = user?.userId || user?.id;
+
     const where: any = { id };
     if (user) {
       where.institutionId = user.institutionId;
       if (user.role !== Role.Admin && user.role !== Role.SuperAdmin) {
-        where.createdById = user.id;
+        where.createdById = userId;
       }
     }
 
@@ -131,7 +155,7 @@ export class CampaignsService {
   async update(
     id: number,
     updateCampaignDto: UpdateCampaignDto,
-    user: User,
+    user: any,
   ): Promise<EmailCampaign> {
     const campaign = await this.findOne(id, user);
 
@@ -162,7 +186,7 @@ export class CampaignsService {
     return this.campaignRepository.save(campaign);
   }
 
-  async remove(id: number, user: User): Promise<void> {
+  async remove(id: number, user: any): Promise<void> {
     const campaign = await this.findOne(id, user);
 
     if (campaign.status === CampaignStatus.SENDING) {
@@ -172,7 +196,10 @@ export class CampaignsService {
     await this.campaignRepository.remove(campaign);
   }
 
-  async duplicate(id: number, user: User): Promise<EmailCampaign> {
+  async duplicate(id: number, user: any): Promise<EmailCampaign> {
+    // JWT payload has 'userId' not 'id' - extract it correctly
+    const userId = user.userId || user.id;
+
     const original = await this.findOne(id, user);
 
     const duplicate = this.campaignRepository.create({
@@ -184,7 +211,7 @@ export class CampaignsService {
       htmlContent: original.htmlContent,
       provider: original.provider,
       audienceFilters: original.audienceFilters,
-      createdById: user.id,
+      createdById: userId,
       institutionId: user.institutionId, // Set institution
       status: CampaignStatus.DRAFT,
     });
@@ -333,7 +360,7 @@ export class CampaignsService {
   async sendCampaign(
     id: number,
     sendDto: SendCampaignDto,
-    user: User,
+    user: any,
   ): Promise<{ success: boolean; message: string; recipientCount: number }> {
     this.logger.log(`[DEBUG] sendCampaign initiated for Campaign ID: ${id}`);
 
@@ -534,7 +561,7 @@ export class CampaignsService {
   // STATISTICS
   // ============================================
 
-  async getStats(id: number, user: User): Promise<{
+  async getStats(id: number, user: any): Promise<{
     campaign: EmailCampaign;
     stats: {
       totalRecipients: number;
@@ -727,16 +754,16 @@ export class CampaignsService {
     institutionId?: number, // Add institutionId
   ): Promise<boolean> {
     const lowerEmail = email.toLowerCase();
-    
+
     // Resolve institutionId if not provided but campaignId is
     if (!institutionId && campaignId) {
-        const campaign = await this.campaignRepository.findOne({ where: { id: campaignId } });
-        if (campaign) institutionId = campaign.institutionId;
+      const campaign = await this.campaignRepository.findOne({ where: { id: campaignId } });
+      if (campaign) institutionId = campaign.institutionId;
     }
 
     if (!institutionId) {
-        this.logger.warn(`Cannot unsubscribe ${email} without institution context`);
-        return false;
+      this.logger.warn(`Cannot unsubscribe ${email} without institution context`);
+      return false;
     }
 
     // Check if already unsubscribed
@@ -809,9 +836,9 @@ export class CampaignsService {
   }
 
   async removeUnsubscribe(email: string, institutionId: number): Promise<void> {
-    await this.unsubscribedRepository.delete({ 
-        email: email.toLowerCase(),
-        institutionId 
+    await this.unsubscribedRepository.delete({
+      email: email.toLowerCase(),
+      institutionId
     });
   }
 
